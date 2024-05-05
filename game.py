@@ -4,6 +4,7 @@ import pygame
 import sys
 from pygame.locals import *
 import math
+from AIprocess import *
 
 # Определение цветов
 WHITE = (255, 255, 255)
@@ -28,15 +29,17 @@ class Car(pygame.sprite.Sprite):
         self.direction = UP  # Начальное направление машинки
         self.angle = 0  # Угол поворота машинки
         self.speed = 0  # Скорость движения машинки
+        self.trajectory = []  # Список для хранения траектории игрока
 
     def update(self, keys):
+        
         if keys[pygame.K_LEFT]:
-            self.angle += 2  # Увеличение угла поворота влево
+            self.angle += 5  # Увеличение угла поворота влево
         elif keys[pygame.K_RIGHT]:
-            self.angle -= 2  # Уменьшение угла поворота вправо
+            self.angle -= 5  # Уменьшение угла поворота вправо
 
         if keys[pygame.K_UP]:
-            self.speed = 2  # Установка скорости вперёд
+            self.speed = 5  # Установка скорости вперёд
         elif keys[pygame.K_DOWN]:
             self.speed = -2  # Установка скорости назад
         else:
@@ -48,12 +51,11 @@ class Car(pygame.sprite.Sprite):
         self.image = pygame.transform.rotate(self.image, self.angle)  # Поворот
         self.rect = self.image.get_rect(center=self.rect.center)
 
-        dx = self.speed * math.cos(math.radians(self.angle))  # Изменение координаты x
-        dy = -self.speed * math.sin(math.radians(self.angle))  # Изменение координаты y
-        self.rect.x += dx
-        self.rect.y += dy
-
-
+        # Вычисление компонент вектора движения на основе угла поворота и скорости
+        direction_vector = pygame.math.Vector2(0, -1).rotate(-self.angle)  # Начинаем с направления вверх
+        direction_vector.scale_to_length(self.speed)  # Масштабируем вектор до нужной длины
+        self.rect.x += direction_vector.x
+        self.rect.y += direction_vector.y
 
         # Перемещение машины в соответствии с новым углом
         if self.direction == UP:
