@@ -1,11 +1,11 @@
 # game.py
-
+print("Здравствуйте Никита Плотников")
 import pygame
 import sys
 from pygame.locals import *
 import math
 from AIprocess import *
-
+#FFFF
 # Определение цветов
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
