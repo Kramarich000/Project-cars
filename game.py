@@ -30,7 +30,7 @@ class Car(pygame.sprite.Sprite):
         self.angle = 0  # Угол поворота машинки
         self.speed = 0  # Скорость движения машинки
         self.trajectory = []  # Список для хранения траектории игрока
-
+        print("f")
     def update(self, keys):
         
         if keys[pygame.K_LEFT]:
