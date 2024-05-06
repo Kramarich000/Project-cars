@@ -1,5 +1,6 @@
 # game.py
 print("Здравствуйте Никита Плотников")
+print("Здравствуйте Никита Плотников!!!!")
 import pygame
 import sys
 from pygame.locals import *
