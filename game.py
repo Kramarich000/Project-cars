@@ -1,18 +1,18 @@
 # game.py
-print("Здравствуйте Никита Плотников")
-print("Здравствуйте Никита Плотников!!!!")
+
 import pygame
 import sys
 from pygame.locals import *
 import math
 from AIprocess import *
-#FFFF
+
+
 # Определение цветов
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (200, 200, 200)
 RED = (255, 0, 0)
-print('prive')
+
 # Определение направлений движения для машинки
 UP = 'up'
 DOWN = 'down'
@@ -22,6 +22,10 @@ RIGHT = 'right'
 # Класс для спрайта машинки
 class Car(pygame.sprite.Sprite):
     def __init__(self, x, y):
+        print("Здравствуйте Карен Аваков")
+        print("Здравствуйте Карен Аваков")
+        print("Здравствуйте Карен Аваков")
+        print("Здравствуйте Карен Аваков")
         super().__init__()
         self.image = pygame.image.load('MyCar.png')  # Загрузка изображения машины
         self.image = pygame.transform.scale(self.image, (70, 150))  # Масштабирование изображения
@@ -31,7 +35,7 @@ class Car(pygame.sprite.Sprite):
         self.angle = 0  # Угол поворота машинки
         self.speed = 0  # Скорость движения машинки
         self.trajectory = []  # Список для хранения траектории игрока
-        print("f")
+
     def update(self, keys):
         
         if keys[pygame.K_LEFT]:
