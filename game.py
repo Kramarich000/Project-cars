@@ -6,6 +6,7 @@ from pygame.locals import *
 import math
 from AIprocess import *
 
+
 # Определение цветов
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -21,6 +22,7 @@ RIGHT = 'right'
 # Класс для спрайта машинки
 class Car(pygame.sprite.Sprite):
     def __init__(self, x, y):
+        print("Здравствуйте Карен Аваков!")
         super().__init__()
         self.image = pygame.image.load('MyCar.png')  # Загрузка изображения машины
         self.image = pygame.transform.scale(self.image, (70, 150))  # Масштабирование изображения
