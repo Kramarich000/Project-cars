@@ -58,7 +58,7 @@ class Car(pygame.sprite.Sprite):
             self.speed = max(self.speed, self.maxBackSpeed)  # Ограничение скорости назад
         else: #Постепенная остановка машины, в зависимости от того ехала машина назад, или вперед уменьшаем ее скорость
             if self.speed > 0:
-                self.speed -= 2*self.backAcceleration
+                self.speed -= 4*self.backAcceleration
             if self.speed < 0:
                self.speed += 2*self.forwardAcceleration 
 
@@ -69,13 +69,13 @@ class Car(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=self.rect.center)
 
         # Вычисление компонент вектора движения на основе угла поворота и скорости
-        dx = math.cos(math.radians(-self.angle)) * self.speed
-        dy = math.sin(math.radians(-self.angle)) * self.speed
+        dx = math.cos(math.radians(self.angle + 90)) * self.speed
+        dy = math.sin(math.radians(-self.angle - 90)) * self.speed
 
         self.rect.x += dx
         self.rect.y += dy
 
-        # Перемещение машины в соответствии с новым углом
+        """# Перемещение машины в соответствии с новым углом
         if self.direction == UP:
             self.rect.y -= self.speed
         elif self.direction == DOWN:
@@ -84,7 +84,7 @@ class Car(pygame.sprite.Sprite):
             self.rect.x -= self.speed
         elif self.direction == RIGHT:
             self.rect.x += self.speed
-
+        """
 # Функция запуска игры
 def run_game(width, height, level):
     pygame.init()
