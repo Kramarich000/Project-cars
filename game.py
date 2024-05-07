@@ -35,20 +35,32 @@ class Car(pygame.sprite.Sprite):
         self.angle = 0  # Угол поворота машинки
         self.speed = 0  # Скорость движения машинки
         self.trajectory = []  # Список для хранения траектории игрока
+        self.maxForwardSpeed = 10 # Максимальная скорость игрока вперёд, которую возможно достигнуть при ускорении
+        self.forwardAcceleration = 0.1 #Ускорение вперед
+        self.maxBackSpeed = -4 #Максимальная скорость игрока назад
+        self.backAcceleration = 0.05 #Ускорение назад
+        self.velocity = pygame.math.Vector2(0, 0)  # Вектор скорости машины
+
+        
 
     def update(self, keys):
         
         if keys[pygame.K_LEFT]:
             self.angle += 5  # Увеличение угла поворота влево
         elif keys[pygame.K_RIGHT]:
-            self.angle -= 5  # Уменьшение угла поворота вправо
+            self.angle -= 5 # Уменьшение угла поворота вправо
 
         if keys[pygame.K_UP]:
-            self.speed = 5  # Установка скорости вперёд
+            self.speed += self.forwardAcceleration # Постепенное увеличение скорости
+            self.speed = min(self.speed, self.maxForwardSpeed) #Ограничение максимальной скорости 
         elif keys[pygame.K_DOWN]:
-            self.speed = -2  # Установка скорости назад
-        else:
-            self.speed = 0  # Остановка машины при отсутствии нажатых клавиш вверх или вниз
+            self.speed -= self.backAcceleration #Постепенное увеличение скорости наазад
+            self.speed = max(self.speed, self.maxBackSpeed)  # Ограничение скорости назад
+        else: #Постепенная остановка машины, в зависимости от того ехала машина назад, или вперед уменьшаем ее скорость
+            if self.speed > 0:
+                self.speed -= 2*self.backAcceleration
+            if self.speed < 0:
+               self.speed += 2*self.forwardAcceleration 
 
         # Поворот изображения машинки
         self.image = pygame.image.load('MyCar.png')  # Загрузка изображения машины
@@ -57,10 +69,11 @@ class Car(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=self.rect.center)
 
         # Вычисление компонент вектора движения на основе угла поворота и скорости
-        direction_vector = pygame.math.Vector2(0, -1).rotate(-self.angle)  # Начинаем с направления вверх
-        direction_vector.scale_to_length(self.speed)  # Масштабируем вектор до нужной длины
-        self.rect.x += direction_vector.x
-        self.rect.y += direction_vector.y
+        dx = math.cos(math.radians(-self.angle)) * self.speed
+        dy = math.sin(math.radians(-self.angle)) * self.speed
+
+        self.rect.x += dx
+        self.rect.y += dy
 
         # Перемещение машины в соответствии с новым углом
         if self.direction == UP:
