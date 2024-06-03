@@ -17,6 +17,9 @@ class Level:
         self.track_mask = pygame.mask.Mask((width, height))
         self.create_track()
         self.checkpoints = self.create_checkpoints()
+        self.current_checkpoint_index = 0  # Индекс текущего чекпоинта
+        self.lap_count = 0  # Счетчик кругов
+        self.visited_checkpoints = 0  # Счетчик посещенных чекпоинтов
 
     def create_track(self):
         # Создание кольцевой трассы черного цвета
@@ -30,13 +33,30 @@ class Level:
                 distance_to_center = math.hypot(x - center[0], y - center[1])
                 if inner_radius < distance_to_center < outer_radius:
                     self.track_mask.set_at((x, y), 1)
+    def check_checkpoints(self, car_rect):
+        for i, checkpoint in enumerate(self.checkpoints):
+            if car_rect.colliderect(checkpoint):
+                if i == self.current_checkpoint_index:  # Проверяем, что чекпоинт пройден в нужном порядке
+                    self.current_checkpoint_index = (self.current_checkpoint_index + 1) % len(self.checkpoints)
+                    if self.current_checkpoint_index == 0:  # Если прошли все чекпоинты
+                        self.lap_count += 1
+                    self.visited_checkpoints += 1
+                    return checkpoint
+                else:
+                    return None
+        return None
 
+    def check_all_checkpoints_visited(self):
+        return self.visited_checkpoints == len(self.checkpoints)
+    
     def create_checkpoints(self):
-        # Создание списка чекпоинтов
         checkpoints = [
             pygame.Rect(self.width // 2 - 50, self.height // 2 - 480, 95, 100),  # верхний чекпоинт
             pygame.Rect(self.width // 2 - 50, self.height // 2 + 380, 95, 100),  # нижний чекпоинт
-        ]
+            pygame.Rect(self.width // 2 - 480, self.height // 2 - 50, 100, 95),  # левый чекпоинт
+            pygame.Rect(self.width // 2 + 380, self.height // 2 - 50, 100, 95),  # правый чекпоинт
+            # Добавьте дополнительные чекпоинты здесь, если необходимо
+    ]
         return checkpoints
 
     def draw(self, screen):
@@ -49,7 +69,7 @@ class Level:
 
         # Отрисовка чекпоинтов (для отладки, можно закомментировать)
         for checkpoint in self.checkpoints:
-            pygame.draw.rect(screen, GREEN, checkpoint)
+            pygame.draw.rect(screen, BLACK, checkpoint)
 
     def is_on_track(self, car_rect):
         x = car_rect.centerx
@@ -172,20 +192,20 @@ def run_game(width, height):
         if background.is_on_track(car.rect):
             if last_off_track:
                 last_off_track = False
-            text = font.render(f"Вы едете по трассе - Круги: {laps}", True, BLACK)
+            text = font.render(f"Вы едете по трассе - Круги: {laps} Посещено чекпоинтов: {background.visited_checkpoints}/{len(background.checkpoints)}", True, BLACK)
         else:
             if not last_off_track:
                 off_track_counter += 1
                 last_off_track = True
-            text = font.render(f"Вы съехали с трассы - Круги: {laps}", True, BLACK)
-        
+            text = font.render(f"Вы съехали с трассы - Круги: {laps} Посещено чекпоинтов: {background.visited_checkpoints}/{len(background.checkpoints)}", True, BLACK)
+
         # Отображение элементов
         background.draw(screen)
         all_sprites.draw(screen)
         screen.blit(text, (10, 10))
         off_track_text = font.render(f"Выездов за трассу: {off_track_counter}", True, BLACK)
         screen.blit(off_track_text, (10, 50))
-        
+
         # Отображение таймеров
         total_time = time.time() - game_start_time
         lap_time = time.time() - lap_start_time
