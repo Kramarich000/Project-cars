@@ -16,41 +16,45 @@ LEFT = 'left'
 RIGHT = 'right'
 
 class Level:
-    def __init__(self, track_image_path, width, height):
+    def __init__(self, width, height):
         self.width = width
         self.height = height
-        # Загрузка изображения трассы и преобразование его в маску
-        self.track_image = pygame.image.load(track_image_path)
-        self.track_image = pygame.transform.scale(self.track_image, (width, height))
-        
-        # Создание маски трассы
         self.track_mask = pygame.mask.Mask((width, height))
-        for x in range(width):
-            for y in range(height):
-                color = self.track_image.get_at((x, y))
-                # Считаем, что черный цвет это дорога
-                if color == (0, 0, 0, 255):  # RGBA format, fully opaque
+        self.create_track()
+
+    def create_track(self):
+        # Создание кольцевой трассы черного цвета
+        center = (self.width // 2, self.height // 2)
+        outer_radius = min(self.width, self.height) // 2 - 50
+        inner_radius = outer_radius - 100
+
+        # Рисование трассы на маске
+        for x in range(self.width):
+            for y in range(self.height):
+                distance_to_center = math.hypot(x - center[0], y - center[1])
+                if inner_radius < distance_to_center < outer_radius:
                     self.track_mask.set_at((x, y), 1)
 
     def draw(self, screen):
-        screen.blit(self.track_image, (0, 0))
+        screen.fill(WHITE)
+        center = (self.width // 2, self.height // 2)
+        outer_radius = min(self.width, self.height) // 2 - 50
+        inner_radius = outer_radius - 100
+        pygame.draw.circle(screen, BLACK, center, outer_radius)
+        pygame.draw.circle(screen, WHITE, center, inner_radius)
 
     def is_on_track(self, car_rect):
-        # Определение координат пикселя, на который наезжает машина
         x = car_rect.centerx
         y = car_rect.centery
-        # Проверка, пересекается ли машина с трассой, используя маску
-        if self.track_mask.get_at((x, y)):
-            return True
-        else:
-            return False
+        return self.track_mask.get_at((x, y))
               
 # Класс для спрайта машинки
 class Car(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
-        self.image = pygame.image.load('MyCar.png')  # Загрузка изображения машины
-        self.image = pygame.transform.scale(self.image, (50, 100))  # Масштабирование изображения
+        self.original_image = pygame.image.load('MyCar.png')  # Загрузка изображения машины
+        self.original_image = pygame.transform.scale(self.original_image, (50, 100))  # Масштабирование изображения
+        self.image = self.original_image.copy()
         self.rect = self.image.get_rect(center=(x, y))
         self.angle = 0  # Угол поворота машинки
         self.speed = 0  # Скорость движения машинки
@@ -78,9 +82,7 @@ class Car(pygame.sprite.Sprite):
                 self.speed += 2 * self.forwardAcceleration
 
         # Поворот изображения машинки
-        self.image = pygame.image.load('MyCar.png')  # Загрузка изображения машины
-        self.image = pygame.transform.scale(self.image, (70, 150))  # Масштабирование изображения
-        self.image = pygame.transform.rotate(self.image, self.angle)  # Поворот
+        self.image = pygame.transform.rotate(self.original_image, self.angle)
         self.rect = self.image.get_rect(center=self.rect.center)
 
         # Вычисление компонент вектора движения на основе угла поворота и скорости
@@ -104,8 +106,7 @@ def run_game(width, height):
     all_sprites = pygame.sprite.Group(car)
     
     # Загрузка трассы
-    track_image_path = "background1.png"
-    background = Level(track_image_path, width, height)
+    background = Level(width, height)
 
     font = pygame.font.Font(None, 36)
 
@@ -123,7 +124,7 @@ def run_game(width, height):
                 width = event.w
                 height = event.h
                 screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)  # Установка новых размеров окна
-                background = Level(track_image_path, width, height)
+                background = Level(width, height)
 
         # Получение нажатых клавиш
         keys = pygame.key.get_pressed()
@@ -148,6 +149,7 @@ def run_game(width, height):
 
         pygame.display.update()
         clock.tick(60)  # Установка FPS на 60
+
 
 if __name__ == "__main__":
     run_game(1910, 1070)  # Выбор начальных размеров окна
