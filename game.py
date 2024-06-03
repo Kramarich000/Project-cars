@@ -6,6 +6,7 @@ from pygame.locals import *
 import math
 from AIprocess import *
 
+import pygame.image
 
 # Определение цветов
 WHITE = (255, 255, 255)
@@ -19,6 +20,31 @@ DOWN = 'down'
 LEFT = 'left'
 RIGHT = 'right'
 
+class Level:
+    def __init__(self, background_image, width, height):
+        self.background_image = pygame.image.load(background_image)
+        self.background_image = pygame.transform.scale(self.background_image, (width, height))
+        self.width = width
+        self.height = height
+        # Загрузка изображения трассы и преобразование его в маску
+        self.track_image = pygame.image.load(background_image)
+        self.track_image = pygame.transform.scale(self.track_image, (width, height))
+        self.track_mask = pygame.mask.from_surface(self.track_image)
+
+    def draw(self, screen):
+        screen.blit(self.background_image, (0, 0))
+
+
+    def is_on_track(self, car_rect):
+        # Определение координат пикселя, на который наезжает машина
+        x = car_rect.x + car_rect.width // 2
+        y = car_rect.y + car_rect.height // 2
+        # Проверка, пересекается ли машина с трассой, используя маску
+        if self.track_mask.get_at((x, y)):
+            return True
+        else:
+            return False
+              
 # Класс для спрайта машинки
 class Car(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -99,6 +125,9 @@ def run_game(width, height, level):
     car = Car(width // 2, height // 2)
     all_sprites = pygame.sprite.Group(car)
 
+    background = Level("background1.png", width, height)
+    font = pygame.font.Font(None, 36)
+
     # Функция отрисовки трассы
     def draw_track():
         track_radius = min(width, height) // 3
@@ -136,8 +165,14 @@ def run_game(width, height, level):
         car.rect.y = max(0, min(height - car.rect.height, car.rect.y))
 
         # Отрисовка трассы и машины
-        draw_track()
+        background.draw(screen)
+        "draw_track()"
         all_sprites.draw(screen)
+        if background.is_on_track(car.rect):
+            text = font.render("вы едете по трассе", True, WHITE)
+        else:
+            text = font.render("вы съехали с трассы", True, WHITE)
+        screen.blit(text, (10, 10))
 
         pygame.display.update()
         clock.tick(60)  # Установка FPS на 60
