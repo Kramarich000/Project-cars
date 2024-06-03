@@ -6,12 +6,10 @@ from pygame.locals import *
 import math
 import random
 from AIprocess import *
-<<<<<<< HEAD
 import pygame.gfxdraw
-=======
 
 import pygame.image
->>>>>>> 5e899d0817e5514f584b424391e3f0a4447c8b16
+
 
 # Определение цветов
 WHITE = (255, 255, 255)
@@ -267,21 +265,20 @@ def run_game(width, height, level):
     car = Car(width // 2, height // 2)
     all_sprites = pygame.sprite.Group(car)
 
-<<<<<<< HEAD
+
     road = Road(width, height)
 
-=======
-<<<<<<< main
+
     background = Level("background1.png", width, height)
     font = pygame.font.Font(None, 36)
-=======
+
     road = Road(width, height)  # Создание экземпляра класса Road
->>>>>>> 5e899d0817e5514f584b424391e3f0a4447c8b16
+
 
     # Переменные для дороги
     # road_color = GRAY
     # road = Road(width, height, road_color)
->>>>>>> main
+
 
     # Функция отрисовки трассы
     # def draw_track():
@@ -325,12 +322,12 @@ def run_game(width, height, level):
         # road.draw(screen)
         # road.draw_lane_markings(screen)
         # Отрисовка трассы и машины
-<<<<<<< main
+
         background.draw(screen)
         "draw_track()"
-=======
+
         # draw_track()
->>>>>>> main
+
         all_sprites.draw(screen)
         if background.is_on_track(car.rect):
             text = font.render("вы едете по трассе", True, WHITE)
