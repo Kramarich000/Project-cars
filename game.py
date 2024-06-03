@@ -27,7 +27,7 @@ class Level:
         center = (self.width // 2, self.height // 2)
         outer_radius = min(self.width, self.height) // 2 - 50
         inner_radius = outer_radius - 100
-
+#ОБОЖЕ У МЕНЯ ДРОЖЬ ПО КОЖЕ
         # Рисование трассы на маске
         for x in range(self.width):
             for y in range(self.height):
