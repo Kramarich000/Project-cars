@@ -6,14 +6,17 @@ from pygame.locals import *
 import math
 import random
 from AIprocess import *
+import pygame.gfxdraw
 
 import pygame.image
+
 
 # Определение цветов
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (200, 200, 200)
 RED = (255, 0, 0)
+GREEN = (0, 255, 0)
 
 # Определение направлений движения для машинки
 UP = 'up'
@@ -49,13 +52,9 @@ class Level:
 # Класс для спрайта машинки
 class Car(pygame.sprite.Sprite):
     def __init__(self, x, y):
-        print("Здравствуйте Карен Аваков")
-        print("Здравствуйте Карен Аваков")
-        print("Здравствуйте Карен Аваков")
-        print("Здравствуйте Карен Аваков")
         super().__init__()
         self.image = pygame.image.load('MyCar.png')  # Загрузка изображения машины
-        self.image = pygame.transform.scale(self.image, (70, 150))  # Масштабирование изображения
+        self.image = pygame.transform.scale(self.image, (50, 100))  # Масштабирование изображения
         self.image.fill(RED)
         self.rect = self.image.get_rect(center=(x, y))
         self.direction = UP  # Начальное направление машинки
@@ -67,8 +66,6 @@ class Car(pygame.sprite.Sprite):
         self.maxBackSpeed = -6 #Максимальная скорость игрока назад
         self.backAcceleration = 0.05 #Ускорение назад
         self.velocity = pygame.math.Vector2(0, 0)  # Вектор скорости машины
-
-        
 
     def update(self, keys):
         
@@ -115,6 +112,7 @@ class Car(pygame.sprite.Sprite):
 
 
 
+
 # Функция запуска игры
 def run_game(width, height, level):
     pygame.init()
@@ -130,9 +128,7 @@ def run_game(width, height, level):
     all_sprites = pygame.sprite.Group(car)
 
 
-    background = Level("background1.png", width, height)
-    font = pygame.font.Font(None, 36)
- 
+
     # Главный игровой цикл
     running = True
     while running:
@@ -158,11 +154,11 @@ def run_game(width, height, level):
         car.rect.x = max(0, min(width - car.rect.width, car.rect.x))
         car.rect.y = max(0, min(height - car.rect.height, car.rect.y))
 
-        # Отрисовка трассы и машины
         background.draw(screen)
         "draw_track()"
 
         # draw_track()
+
         all_sprites.draw(screen)
         if background.is_on_track(car.rect):
             text = font.render("вы едете по трассе", True, BLACK)

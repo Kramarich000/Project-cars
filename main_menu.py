@@ -3,7 +3,7 @@ import sys
 from level import *
 from settings import *
 from game import *
-
+ 
 # Инициализация Pygame
 pygame.init()
 
