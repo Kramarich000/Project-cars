@@ -30,7 +30,7 @@ class Level:
         # Загрузка изображения трассы и преобразование его в маску
         self.track_image = pygame.image.load(background_image)
         self.track_image = pygame.transform.scale(self.track_image, (width, height))
-        self.track_mask = pygame.mask.from_surface(self.track_image)
+        self.track_mask = pygame.mask.from_threshold(self.background_image, (50, 50, 50), (255, 255, 255))
 
     def draw(self, screen):
         screen.blit(self.background_image, (0, 0))
@@ -62,9 +62,9 @@ class Car(pygame.sprite.Sprite):
         self.angle = 0  # Угол поворота машинки
         self.speed = 0  # Скорость движения машинки
         self.trajectory = []  # Список для хранения траектории игрока
-        self.maxForwardSpeed = 4 # Максимальная скорость игрока вперёд, которую возможно достигнуть при ускорении
-        self.forwardAcceleration = 0.1 #Ускорение вперед
-        self.maxBackSpeed = -3 #Максимальная скорость игрока назад
+        self.maxForwardSpeed = 12 # Максимальная скорость игрока вперёд, которую возможно достигнуть при ускорении
+        self.forwardAcceleration = 0.10 #Ускорение вперед
+        self.maxBackSpeed = -6 #Максимальная скорость игрока назад
         self.backAcceleration = 0.05 #Ускорение назад
         self.velocity = pygame.math.Vector2(0, 0)  # Вектор скорости машины
 
@@ -112,105 +112,8 @@ class Car(pygame.sprite.Sprite):
         elif self.direction == RIGHT:
             self.rect.x += self.speed
         """
-# Класс для дороги
-# Класс для дороги
-class Road:
-    def __init__(self, width, height):
-        self.width = width
-        self.height = height
-        self.road_image = pygame.image.load('map.png')  # Загрузка фонового изображения дороги
-        self.scroll_speed_x = 0  # Скорость горизонтальной прокрутки
-        self.scroll_speed_y = 0  # Скорость вертикальной прокрутки
-        self.scroll_position = [0, 0]  # Позиция прокрутки
-
-    def draw(self, screen):
-        screen.blit(self.road_image, self.scroll_position)  # Отображение фонового изображения дороги
-
-    def scroll(self, car_speed, car_angle):
-        # Вычисляем скорость прокрутки фонового изображения по оси X
-        self.scroll_speed_x = car_speed * math.sin(math.radians(car_angle))
-
-        # Вычисляем скорость прокрутки фонового изображения по оси Y
-        self.scroll_speed_y = car_speed * math.cos(math.radians(car_angle))
-
-        # Прокручиваем изображение дороги
-        self.scroll_position[0] += self.scroll_speed_x
-        self.scroll_position[1] += self.scroll_speed_y
-
-        # Если изображение дороги вышло за границы, возвращаем его в начальную позицию
-        if self.scroll_position[0] > 0:
-            self.scroll_position[0] = 0
-        if self.scroll_position[1] > 0:
-            self.scroll_position[1] = 0
-        if self.scroll_position[0] < self.width - self.road_image.get_width():
-            self.scroll_position[0] = self.width - self.road_image.get_width()
-        if self.scroll_position[1] < self.height - self.road_image.get_height():
-            self.scroll_position[1] = self.height - self.road_image.get_height()
 
 
-# Класс для дороги(который с отрисовкой руками и генерацией(кривой конечно же :) )
-# class Road:
-#     def __init__(self, width, height, color):
-#         self.width = width
-#         self.height = height
-#         self.color = color
-#         self.segments = []
-#         self.segment_length = 100
-#         self.segment_width = width
-#         self.segment_height = height // 10
-#         self.generate_segments()
-#         self.road_color = color
-#         self.grass_color = (50, 150, 50)
-
-#     def draw(self, screen):
-#         for segment in self.segments:
-#             pygame.draw.rect(screen, self.road_color, segment[0])
-#             pygame.draw.rect(screen, self.grass_color, (segment[0][0], segment[0][1] - self.segment_height, segment[0][2] - segment[0][0], self.segment_height))
-
-#     def draw_lane_markings(self, screen):
-#         lane_width = 100
-#         lane_color = WHITE
-
-#         for segment in self.segments:
-#             pygame.draw.line(screen, lane_color, (segment[0][0] + self.segment_width // 2, segment[0][1]), (segment[0][0] + self.segment_width // 2, segment[0][1] + self.segment_height), 5)
-#             pygame.draw.line(screen, lane_color, (segment[0][0] + lane_width // 2, segment[0][1]), (segment[0][0] + lane_width // 2, segment[0][1] + self.segment_height), 5)
-#             pygame.draw.line(screen, lane_color, (segment[0][2] - lane_width // 2, segment[0][1]), (segment[0][2] - lane_width // 2, segment[0][1] + self.segment_height), 5)
-
-#     def generate_segments(self):
-#         for i in range(self.height // self.segment_height + 1):
-#             x = random.randint(0, self.width - self.segment_width)
-#             y = i * self.segment_height
-#             segment = (pygame.Rect(x, y, self.segment_width, self.segment_height), 0) # Добавляем угол поворота
-#             self.segments.append(segment)
-
-#         # Создание перекрестков
-#         num_intersections = 4
-#         intersection_spacing = self.height // num_intersections
-
-#         for i in range(1, num_intersections):
-#             x = random.randint(0, self.width - self.segment_width)
-#             y = i * intersection_spacing
-#             # Создаем дорогу, проходящую через перекресток
-#             intersection_length = random.randint(self.segment_width // 2, self.segment_width * 2)
-#             intersection = (pygame.Rect(x, y, intersection_length, self.segment_height), 0)
-#             self.segments.append(intersection)
-
-#     def scroll(self, speed, car_angle):
-#             for i in range(len(self.segments)):
-#                 segment_rect, segment_angle = self.segments[i]
-#                 segment_rect.y += speed * math.cos(math.radians(car_angle))
-#                 segment_rect.x -= speed * math.sin(math.radians(car_angle))
-                
-#                 # Перемещаем существующие сегменты вверх
-#                 if segment_rect.y > self.height:
-#                     segment_rect.topleft = (segment_rect.x, segment_rect.y - self.height)
-                    
-#                 # Добавляем новые сегменты снизу
-#                 if segment_rect.y + segment_rect.height < 0:
-#                     x = random.randint(0, self.width - self.segment_width)
-#                     y = self.segments[i - 1][0].y - self.segment_height
-#                     segment_rect.topleft = (x, y)
-#                     self.segments[i] = (segment_rect, car_angle)
 
 # Функция запуска игры
 def run_game(width, height, level):
@@ -229,24 +132,7 @@ def run_game(width, height, level):
 
     background = Level("background1.png", width, height)
     font = pygame.font.Font(None, 36)
- # Создание экземпляра класса Road
-
-    # Переменные для дороги
-    # road_color = GRAY
-    # road = Road(width, height, road_color)
-
-
-    # Функция отрисовки трассы
-    # def draw_track():
-    #     track_radius = min(width, height) // 3
-    #     track_thickness = 20
-
-    #     # Отрисовка зеленой травы
-    #     pygame.draw.circle(screen, (0, 128, 0), (width // 2, height // 2), track_radius + track_thickness)
-
-    #     # Отрисовка серой трассы
-    #     pygame.draw.circle(screen, GRAY, (width // 2, height // 2), track_radius)
-
+ 
     # Главный игровой цикл
     running = True
     while running:
@@ -272,9 +158,6 @@ def run_game(width, height, level):
         car.rect.x = max(0, min(width - car.rect.width, car.rect.x))
         car.rect.y = max(0, min(height - car.rect.height, car.rect.y))
 
-        # road.scroll(car.speed, car.angle)
-        # road.draw(screen)
-        # road.draw_lane_markings(screen)
         # Отрисовка трассы и машины
         background.draw(screen)
         "draw_track()"
@@ -282,10 +165,10 @@ def run_game(width, height, level):
         # draw_track()
         all_sprites.draw(screen)
         if background.is_on_track(car.rect):
-            text = font.render("вы едете по трассе", True, WHITE)
+            text = font.render("вы едете по трассе", True, BLACK)
         else:
-            text = font.render("вы съехали с трассы", True, WHITE)
-        screen.blit(text, (10, 10))
+            text = font.render("вы съехали с трассы", True, BLACK)
+        screen.blit(text, (width/2, 0))
 
         pygame.display.update()
         clock.tick(60)  # Установка FPS на 60
