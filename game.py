@@ -14,7 +14,7 @@ UP = 'up'
 DOWN = 'down'
 LEFT = 'left'
 RIGHT = 'right'
-
+#ого
 class Level:
     def __init__(self, width, height):
         self.width = width
