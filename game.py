@@ -226,16 +226,15 @@ def run_game(width, height, level):
     car = Car(width // 2, height // 2)
     all_sprites = pygame.sprite.Group(car)
 
-<<<<<<< main
+
     background = Level("background1.png", width, height)
     font = pygame.font.Font(None, 36)
-=======
-    road = Road(width, height)  # Создание экземпляра класса Road
+ # Создание экземпляра класса Road
 
     # Переменные для дороги
     # road_color = GRAY
     # road = Road(width, height, road_color)
->>>>>>> main
+
 
     # Функция отрисовки трассы
     # def draw_track():
@@ -274,17 +273,13 @@ def run_game(width, height, level):
         car.rect.y = max(0, min(height - car.rect.height, car.rect.y))
 
         # road.scroll(car.speed, car.angle)
-        road.scroll(car.speed, car.angle)  # Обновление прокрутки дороги в зависимости от скорости и угла машины
-        road.draw(screen)  # Отрисовка фонового изображения дороги на экране    
         # road.draw(screen)
         # road.draw_lane_markings(screen)
         # Отрисовка трассы и машины
-<<<<<<< main
         background.draw(screen)
         "draw_track()"
-=======
+
         # draw_track()
->>>>>>> main
         all_sprites.draw(screen)
         if background.is_on_track(car.rect):
             text = font.render("вы едете по трассе", True, WHITE)
