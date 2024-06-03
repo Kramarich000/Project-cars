@@ -21,19 +21,28 @@ class Level:
         self.height = height
         self.track_mask = pygame.mask.Mask((width, height))
         self.create_track()
+        self.checkpoints = self.create_checkpoints()
 
     def create_track(self):
         # Создание кольцевой трассы черного цвета
         center = (self.width // 2, self.height // 2)
         outer_radius = min(self.width, self.height) // 2 - 50
         inner_radius = outer_radius - 100
-#ОБОЖЕ У МЕНЯ ДРОЖЬ ПО КОЖЕ
+
         # Рисование трассы на маске
         for x in range(self.width):
             for y in range(self.height):
                 distance_to_center = math.hypot(x - center[0], y - center[1])
                 if inner_radius < distance_to_center < outer_radius:
                     self.track_mask.set_at((x, y), 1)
+
+    def create_checkpoints(self):
+        # Создание списка чекпоинтов
+        checkpoints = [
+            pygame.Rect(self.width // 2 - 50, self.height // 2 - 480, 95, 100),  # верхний чекпоинт
+            pygame.Rect(self.width // 2 - 50, self.height // 2 + 380, 95, 100),  # нижний чекпоинт
+        ]
+        return checkpoints
 
     def draw(self, screen):
         screen.fill(WHITE)
@@ -43,11 +52,21 @@ class Level:
         pygame.draw.circle(screen, BLACK, center, outer_radius)
         pygame.draw.circle(screen, WHITE, center, inner_radius)
 
+        # Отрисовка чекпоинтов (для отладки, можно закомментировать)
+        for checkpoint in self.checkpoints:
+            pygame.draw.rect(screen, GREEN, checkpoint)
+
     def is_on_track(self, car_rect):
         x = car_rect.centerx
         y = car_rect.centery
         return self.track_mask.get_at((x, y))
-              
+
+    def check_checkpoints(self, car_rect):
+        for checkpoint in self.checkpoints:
+            if car_rect.colliderect(checkpoint):
+                return checkpoint
+        return None
+
 # Класс для спрайта машинки
 class Car(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -59,9 +78,9 @@ class Car(pygame.sprite.Sprite):
         self.angle = 0  # Угол поворота машинки
         self.speed = 0  # Скорость движения машинки
         self.maxForwardSpeed = 12  # Максимальная скорость игрока вперёд
-        self.forwardAcceleration = 0.10  # Ускорение вперед
+        self.forwardAcceleration = 0.15  # Ускорение вперед
         self.maxBackSpeed = -6  # Максимальная скорость игрока назад
-        self.backAcceleration = 0.05  # Ускорение назад
+        self.backAcceleration = 0.1  # Ускорение назад
 
     def update(self, keys):
         if keys[pygame.K_LEFT]:
@@ -109,6 +128,8 @@ def run_game(width, height):
     background = Level(width, height)
 
     font = pygame.font.Font(None, 36)
+    laps = 0
+    last_checkpoint = None
 
     # Главный игровой цикл
     running = True
@@ -136,15 +157,22 @@ def run_game(width, height):
         car.rect.x = max(0, min(width - car.rect.width, car.rect.x))
         car.rect.y = max(0, min(height - car.rect.height, car.rect.y))
 
+        # Проверка чекпоинтов
+        checkpoint = background.check_checkpoints(car.rect)
+        if checkpoint and checkpoint != last_checkpoint:
+            last_checkpoint = checkpoint
+            if checkpoint == background.checkpoints[-1]:
+                laps += 1
+
         # Отображение элементов
         background.draw(screen)
         all_sprites.draw(screen)
 
         # Проверка, на трассе ли машина
         if background.is_on_track(car.rect):
-            text = font.render("вы едете по трассе", True, BLACK)
+            text = font.render(f"вы едете по трассе - Круги: {laps}", True, BLACK)
         else:
-            text = font.render("вы съехали с трассы", True, BLACK)
+            text = font.render(f"вы съехали с трассы - Круги: {laps}", True, BLACK)
         screen.blit(text, (10, 10))
 
         pygame.display.update()
