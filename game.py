@@ -1,20 +1,11 @@
-# game.py
-
 import pygame
 import sys
 from pygame.locals import *
 import math
-import random
-from AIprocess import *
-import pygame.gfxdraw
-
-import pygame.image
-
 
 # Определение цветов
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-GRAY = (200, 200, 200)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 
@@ -25,24 +16,29 @@ LEFT = 'left'
 RIGHT = 'right'
 
 class Level:
-    def __init__(self, background_image, width, height):
-        self.background_image = pygame.image.load(background_image)
-        self.background_image = pygame.transform.scale(self.background_image, (width, height))
+    def __init__(self, track_image_path, width, height):
         self.width = width
         self.height = height
         # Загрузка изображения трассы и преобразование его в маску
-        self.track_image = pygame.image.load(background_image)
+        self.track_image = pygame.image.load(track_image_path)
         self.track_image = pygame.transform.scale(self.track_image, (width, height))
-        self.track_mask = pygame.mask.from_threshold(self.background_image, (50, 50, 50), (255, 255, 255))
+        
+        # Создание маски трассы
+        self.track_mask = pygame.mask.Mask((width, height))
+        for x in range(width):
+            for y in range(height):
+                color = self.track_image.get_at((x, y))
+                # Считаем, что черный цвет это дорога
+                if color == (0, 0, 0, 255):  # RGBA format, fully opaque
+                    self.track_mask.set_at((x, y), 1)
 
     def draw(self, screen):
-        screen.blit(self.background_image, (0, 0))
-
+        screen.blit(self.track_image, (0, 0))
 
     def is_on_track(self, car_rect):
         # Определение координат пикселя, на который наезжает машина
-        x = car_rect.x + car_rect.width // 2
-        y = car_rect.y + car_rect.height // 2
+        x = car_rect.centerx
+        y = car_rect.centery
         # Проверка, пересекается ли машина с трассой, используя маску
         if self.track_mask.get_at((x, y)):
             return True
@@ -55,36 +51,31 @@ class Car(pygame.sprite.Sprite):
         super().__init__()
         self.image = pygame.image.load('MyCar.png')  # Загрузка изображения машины
         self.image = pygame.transform.scale(self.image, (50, 100))  # Масштабирование изображения
-        self.image.fill(RED)
         self.rect = self.image.get_rect(center=(x, y))
-        self.direction = UP  # Начальное направление машинки
         self.angle = 0  # Угол поворота машинки
         self.speed = 0  # Скорость движения машинки
-        self.trajectory = []  # Список для хранения траектории игрока
-        self.maxForwardSpeed = 12 # Максимальная скорость игрока вперёд, которую возможно достигнуть при ускорении
-        self.forwardAcceleration = 0.10 #Ускорение вперед
-        self.maxBackSpeed = -6 #Максимальная скорость игрока назад
-        self.backAcceleration = 0.05 #Ускорение назад
-        self.velocity = pygame.math.Vector2(0, 0)  # Вектор скорости машины
+        self.maxForwardSpeed = 12  # Максимальная скорость игрока вперёд
+        self.forwardAcceleration = 0.10  # Ускорение вперед
+        self.maxBackSpeed = -6  # Максимальная скорость игрока назад
+        self.backAcceleration = 0.05  # Ускорение назад
 
     def update(self, keys):
-        
         if keys[pygame.K_LEFT]:
             self.angle += 5  # Увеличение угла поворота влево
         elif keys[pygame.K_RIGHT]:
-            self.angle -= 5 # Уменьшение угла поворота вправо
+            self.angle -= 5  # Уменьшение угла поворота вправо
 
         if keys[pygame.K_UP]:
-            self.speed += self.forwardAcceleration # Постепенное увеличение скорости
-            self.speed = min(self.speed, self.maxForwardSpeed) #Ограничение максимальной скорости 
+            self.speed += self.forwardAcceleration  # Постепенное увеличение скорости
+            self.speed = min(self.speed, self.maxForwardSpeed)  # Ограничение максимальной скорости
         elif keys[pygame.K_DOWN]:
-            self.speed -= self.backAcceleration #Постепенное увеличение скорости наазад
+            self.speed -= self.backAcceleration  # Постепенное увеличение скорости назад
             self.speed = max(self.speed, self.maxBackSpeed)  # Ограничение скорости назад
-        else: #Постепенная остановка машины, в зависимости от того ехала машина назад, или вперед уменьшаем ее скорость
+        else:  # Постепенная остановка машины
             if self.speed > 0:
-                self.speed -= 4*self.backAcceleration
+                self.speed -= 4 * self.backAcceleration
             if self.speed < 0:
-               self.speed += 2*self.forwardAcceleration 
+                self.speed += 2 * self.forwardAcceleration
 
         # Поворот изображения машинки
         self.image = pygame.image.load('MyCar.png')  # Загрузка изображения машины
@@ -99,22 +90,7 @@ class Car(pygame.sprite.Sprite):
         self.rect.x += dx
         self.rect.y += dy
 
-        """# Перемещение машины в соответствии с новым углом
-        if self.direction == UP:
-            self.rect.y -= self.speed
-        elif self.direction == DOWN:
-            self.rect.y += self.speed
-        elif self.direction == LEFT:
-            self.rect.x -= self.speed
-        elif self.direction == RIGHT:
-            self.rect.x += self.speed
-        """
-
-
-
-
-# Функция запуска игры
-def run_game(width, height, level):
+def run_game(width, height):
     pygame.init()
 
     # Определение размеров окна
@@ -126,8 +102,12 @@ def run_game(width, height, level):
     # Переменные для машины
     car = Car(width // 2, height // 2)
     all_sprites = pygame.sprite.Group(car)
+    
+    # Загрузка трассы
+    track_image_path = "background1.png"
+    background = Level(track_image_path, width, height)
 
-
+    font = pygame.font.Font(None, 36)
 
     # Главный игровой цикл
     running = True
@@ -143,6 +123,7 @@ def run_game(width, height, level):
                 width = event.w
                 height = event.h
                 screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)  # Установка новых размеров окна
+                background = Level(track_image_path, width, height)
 
         # Получение нажатых клавиш
         keys = pygame.key.get_pressed()
@@ -154,21 +135,19 @@ def run_game(width, height, level):
         car.rect.x = max(0, min(width - car.rect.width, car.rect.x))
         car.rect.y = max(0, min(height - car.rect.height, car.rect.y))
 
+        # Отображение элементов
         background.draw(screen)
-        "draw_track()"
-
-        # draw_track()
-
         all_sprites.draw(screen)
+
+        # Проверка, на трассе ли машина
         if background.is_on_track(car.rect):
             text = font.render("вы едете по трассе", True, BLACK)
         else:
             text = font.render("вы съехали с трассы", True, BLACK)
-        screen.blit(text, (width/2, 0))
+        screen.blit(text, (10, 10))
 
         pygame.display.update()
         clock.tick(60)  # Установка FPS на 60
 
-# Запуск игры
 if __name__ == "__main__":
-    run_game(1910, 1070, 1)  # Выбор начальных размеров окна и уровня
+    run_game(1910, 1070)  # Выбор начальных размеров окна
