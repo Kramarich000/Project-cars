@@ -213,6 +213,12 @@ def run_game(width, height):
                 screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)  # Установка новых размеров окна
                 background = Level(width, height)
 
+        #Проверка на то, достиг ли игрок нужного кол-ва кругов, если да, то вызываем функцию отрисовки финального экрана
+        if laps >= maxLaps:
+            background.drawFinalWindow(width, height, screen, font, laps, off_track_counter, f"{total_time:.2f} сек")
+            pygame.display.update()
+            continue 
+        
         # Получение нажатых клавиш
         keys = pygame.key.get_pressed()
 
@@ -242,12 +248,7 @@ def run_game(width, height):
                 last_off_track = True
             text = font.render(f"Вы съехали с трассы - Круги: {laps} Посещено чекпоинтов: {background.visited_checkpoints}/{len(background.checkpoints)}", True, BLACK)
 
-        #Проверка на то, достиг ли игрок нужного кол-ва кругов, если да, то вызываем функцию отрисовки финального экрана
-        if laps >= maxLaps:
-            background.drawFinalWindow(width, height, screen, font, laps, off_track_counter, f"{total_time:.2f} сек")
-            pygame.display.update()
-            continue 
-
+        
         # Отображение элементов
         background.draw(screen)
         all_sprites.draw(screen)
