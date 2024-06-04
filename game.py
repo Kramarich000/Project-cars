@@ -29,8 +29,6 @@ class Level:
         self.lap_count = 0  # Счетчик кругов
         self.visited_checkpoints = 0  # Счетчик посещенных чекпоинтов
 
-    
-    # Функция отрисовки финального окна с конечным результатом
     def drawFinalWindow(self, width, height, screen, font, laps, off_track_counter, total_time):
         # Размеры окна и его прозрачность
         window_width, window_height = width, height
@@ -396,8 +394,7 @@ def run_game(width, height):
             background.drawFinalWindow(width, height, screen, font, laps, off_track_counter, f"{total_time:.2f} сек")
             pygame.display.update()
             continue 
-        
-        
+
         # Получение нажатых клавиш
         keys = pygame.key.get_pressed()
 
