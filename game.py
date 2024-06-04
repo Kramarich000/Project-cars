@@ -15,7 +15,7 @@ UP = 'up'
 DOWN = 'down'
 LEFT = 'left'
 RIGHT = 'right'
-#ого
+
 class Level:
     def __init__(self, width, height):
         self.width = width
@@ -27,16 +27,15 @@ class Level:
         self.lap_count = 0  # Счетчик кругов
         self.visited_checkpoints = 0  # Счетчик посещенных чекпоинтов
 
-
-    #Функция отрисовки финального окна с конечным результатом
+    # Функция отрисовки финального окна с конечным результатом
     def drawFinalWindow(self, width, height, screen, font, laps, off_track_counter, total_time):
         # Размеры окна и его прозрачность
         window_width, window_height = width, height
-        transparency = 10  # 0 - полностью прозрачное, 255 - полностью непрозрачное
+        transparency = 150  # Уровень прозрачности (0-255)
 
         # Создаем поверхность для окна с поддержкой альфа-канала
         window_surface = pygame.Surface((window_width, window_height), pygame.SRCALPHA)
-        window_surface.fill((0, 0, 0, transparency))  # Заливка окна черным цветом с прозрачностью
+        window_surface.fill((0, 0, 0, transparency))  # Заливка окна черным цветом с заданной прозрачностью
 
         # Подготовка текста
         laps_text = font.render(f'Количество кругов: {laps}', True, (255, 255, 255))
@@ -59,8 +58,6 @@ class Level:
         # Обновляем экран
         pygame.display.flip()
 
-
-
     def create_track(self):
         # Создание кольцевой трассы черного цвета
         center = (self.width // 2, self.height // 2)
@@ -73,7 +70,6 @@ class Level:
                 distance_to_center = math.hypot(x - center[0], y - center[1])
                 if inner_radius < distance_to_center < outer_radius:
                     self.track_mask.set_at((x, y), 1)
-                    
 
     def check_checkpoints(self, car_rect):
         for i, checkpoint in enumerate(self.checkpoints):
@@ -98,7 +94,7 @@ class Level:
             pygame.Rect(self.width // 2 - 480, self.height // 2 - 50, 100, 95),  # левый чекпоинт
             pygame.Rect(self.width // 2 + 380, self.height // 2 - 50, 100, 95),  # правый чекпоинт
             # Добавьте дополнительные чекпоинты здесь, если необходимо
-    ]
+        ]
         return checkpoints
 
     def draw(self, screen):
@@ -160,7 +156,6 @@ class Car(pygame.sprite.Sprite):
             elif keys[pygame.K_RIGHT]:
                 self.angle -= 5  # Уменьшение угла поворота вправо
 
-
         # Поворот изображения машинки
         self.image = pygame.transform.rotate(self.original_image, self.angle)
         self.rect = self.image.get_rect(center=self.rect.center)
@@ -195,7 +190,23 @@ def run_game(width, height):
     last_off_track = False
     game_start_time = time.time()
     lap_start_time = game_start_time
-    maxLaps = 3 #Кол-во кругов для завершения игры
+    maxLaps = 3  # Кол-во кругов для завершения игры
+
+    def open_main_menu():
+        import main_menu
+        main_menu.main_menu()
+
+    def start_ai_race():
+        print("AI race started")
+
+    def draw_button(text, rect):
+        pygame.draw.rect(screen, BLACK, rect)
+        text_surf = font.render(text, True, WHITE)
+        text_rect = text_surf.get_rect(center=rect.center)
+        screen.blit(text_surf, text_rect)
+
+    button1 = pygame.Rect(10, 200, 200, 50)
+    button2 = pygame.Rect(10, 260, 200, 50)
 
     # Главный игровой цикл
     running = True
@@ -212,6 +223,12 @@ def run_game(width, height):
                 height = event.h
                 screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)  # Установка новых размеров окна
                 background = Level(width, height)
+            elif event.type == MOUSEBUTTONDOWN:  # Обработка нажатия кнопки мыши
+                mouse_pos = event.pos
+                if button1.collidepoint(mouse_pos):
+                    open_main_menu()
+                elif button2.collidepoint(mouse_pos):
+                    start_ai_race()
 
         # Получение нажатых клавиш
         keys = pygame.key.get_pressed()
@@ -242,7 +259,7 @@ def run_game(width, height):
                 last_off_track = True
             text = font.render(f"Вы съехали с трассы - Круги: {laps} Посещено чекпоинтов: {background.visited_checkpoints}/{len(background.checkpoints)}", True, BLACK)
 
-        #Проверка на то, достиг ли игрок нужного кол-ва кругов, если да, то вызываем функцию отрисовки финального экрана
+        # Проверка на то, достиг ли игрок нужного кол-ва кругов, если да, то вызываем функцию отрисовки финального экрана
         if laps >= maxLaps:
             background.drawFinalWindow(width, height, screen, font, laps, off_track_counter, f"{total_time:.2f} сек")
             pygame.display.update()
@@ -262,6 +279,9 @@ def run_game(width, height):
         screen.blit(total_time_text, (10, 90))
         lap_time_text = font.render(f"Время текущего круга: {lap_time:.2f} сек", True, BLACK)
         screen.blit(lap_time_text, (10, 130))
+
+        draw_button("Главное меню", button1)
+        draw_button("Проезд ИИ", button2)
 
         pygame.display.update()
         clock.tick(60)  # Установка FPS на 60
