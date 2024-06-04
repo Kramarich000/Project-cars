@@ -251,18 +251,13 @@ class AICar(pygame.sprite.Sprite):
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(128, activation='relu'),
             tf.keras.layers.Dense(64, activation='relu'),
-            tf.keras.layers.Dense(3, activation='softmax')
+            tf.keras.layers.Dense(5, activation='softmax')  # 5 классов: вперед, назад, влево, вправо, ничего не делать
         ])
         model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
         return model
 
-
-    # В методе update класса AICar
     def update(self, player_rect, screen):
-        # Отбрасываем старые позиции, если их больше, чем self.max_positions
         self.positions = self.positions[-self.max_positions:]
-
-        # Добавляем текущее положение машины в список позиций
         self.positions.append((self.rect.centerx, self.rect.centery))
 
         if len(self.positions) >= self.max_positions:
@@ -273,14 +268,22 @@ class AICar(pygame.sprite.Sprite):
             action = np.argmax(prediction)
 
             if action == 0:
-                self.angle += 5
+                self.speed += self.forwardAcceleration
+                self.speed = min(self.speed, self.maxForwardSpeed)
             elif action == 1:
+                self.speed -= self.backAcceleration
+                self.speed = max(self.speed, self.maxBackSpeed)
+            elif action == 2:
+                self.angle += 5
+            elif action == 3:
                 self.angle -= 5
+
+        self.image = pygame.transform.rotate(self.original_image, self.angle)
+        self.rect = self.image.get_rect(center=self.rect.center)
 
         dx = math.cos(math.radians(self.angle + 90)) * self.speed
         dy = math.sin(math.radians(-self.angle - 90)) * self.speed
 
-        # Проверка, чтобы машина не выезжала за границы экрана
         new_x = self.rect.x + dx
         new_y = self.rect.y + dy
         if 0 <= new_x <= screen.get_width() - self.rect.width:
@@ -290,20 +293,33 @@ class AICar(pygame.sprite.Sprite):
 
         self.positions.append((self.rect.centerx, self.rect.centery))
 
-
     def train_model(self, car_positions):
         x_train = []
         y_train = []
 
-        for i in range(len(car_positions) - self.max_positions):
+        for i in range(len(car_positions) - self.max_positions - 1):
             x_train.append(car_positions[i:i + self.max_positions])
-            action = 0 if car_positions[i + self.max_positions][0] > car_positions[i][0] else 1
+            dx = car_positions[i + self.max_positions][0] - car_positions[i + self.max_positions - 1][0]
+            dy = car_positions[i + self.max_positions][1] - car_positions[i + self.max_positions - 1][1]
+            
+            if dx > 0:
+                action = 0  # Вперед
+            elif dx < 0:
+                action = 1  # Назад
+            elif dy > 0:
+                action = 2  # Влево
+            elif dy < 0:
+                action = 3  # Вправо
+            else:
+                action = 4  # Ничего не делать
+
             y_train.append(action)
 
         x_train = np.array(x_train)
         y_train = np.array(y_train)
 
         self.model.fit(x_train, y_train, epochs=10, verbose=1)
+
 
     def reset_positions(self):
         self.positions = []
@@ -447,7 +463,7 @@ def run_game(width, height):
         screen.blit(fps, (10, 170))
 
         pygame.display.update()
-        clock.tick(60)  # Установка FPS на 60
+        clock.tick(100)  # Установка FPS на 100
 
 if __name__ == "__main__":
     run_game(1910, 1070)  # Выбор начальных размеров окна
