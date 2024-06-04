@@ -230,6 +230,12 @@ def run_game(width, height):
                 elif button2.collidepoint(mouse_pos):
                     start_ai_race()
 
+        #Проверка на то, достиг ли игрок нужного кол-ва кругов, если да, то вызываем функцию отрисовки финального экрана
+        if laps >= maxLaps:
+            background.drawFinalWindow(width, height, screen, font, laps, off_track_counter, f"{total_time:.2f} сек")
+            pygame.display.update()
+            continue 
+        
         # Получение нажатых клавиш
         keys = pygame.key.get_pressed()
 
@@ -265,6 +271,7 @@ def run_game(width, height):
             pygame.display.update()
             continue 
 
+        
         # Отображение элементов
         background.draw(screen)
         all_sprites.draw(screen)
