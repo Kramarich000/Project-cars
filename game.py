@@ -396,7 +396,11 @@ def run_game(width, height):
             background.drawFinalWindow(width, height, screen, font, laps, off_track_counter, f"{total_time:.2f} сек")
             pygame.display.update()
             continue 
+<<<<<<< HEAD
         
+=======
+
+>>>>>>> b58a263e348df6a61937723963bcacdf4eb46af8
         # Получение нажатых клавиш
         keys = pygame.key.get_pressed()
 
