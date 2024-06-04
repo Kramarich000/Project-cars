@@ -56,7 +56,7 @@ class Level:
         screen.blit(window_surface, (0, 0))
         def open_main_menu():
             import main_menu
-            main_menu.main_menu()
+            main_menu.main_menu(1910, 1070)
 
         def start_ai_race():
             print("AI race started")
@@ -140,8 +140,8 @@ class Level:
     def create_checkpoints(self):
         checkpoints = [
             pygame.Rect(self.width // 2 - 50, self.height // 2 - 480, 95, 100),  # верхний чекпоинт
-            pygame.Rect(self.width // 2 - 50, self.height // 2 + 380, 95, 100),  # нижний чекпоинт
             pygame.Rect(self.width // 2 - 480, self.height // 2 - 50, 100, 95),  # левый чекпоинт
+            pygame.Rect(self.width // 2 - 50, self.height // 2 + 380, 95, 100),  # нижний чекпоинт
             pygame.Rect(self.width // 2 + 380, self.height // 2 - 50, 100, 95),  # правый чекпоинт
             # Добавьте дополнительные чекпоинты здесь, если необходимо
         ]
@@ -164,11 +164,11 @@ class Level:
         y = car_rect.centery
         return self.track_mask.get_at((x, y))
 
-    def check_checkpoints(self, car_rect):
-        for checkpoint in self.checkpoints:
-            if car_rect.colliderect(checkpoint):
-                return checkpoint
-        return None
+    # def check_checkpoints(self, car_rect):
+    #     for checkpoint in self.checkpoints:
+    #         if car_rect.colliderect(checkpoint):
+    #             return checkpoint
+    #     return None
 
 # Класс для спрайта машинки
 class Car(pygame.sprite.Sprite):
@@ -245,7 +245,7 @@ def run_game(width, height):
 
     def open_main_menu():
         import main_menu
-        main_menu.main_menu()
+        main_menu.main_menu(1910, 1070)
 
     def start_ai_race():
         print("AI race started")
@@ -309,12 +309,13 @@ def run_game(width, height):
         if background.is_on_track(car.rect):
             if last_off_track:
                 last_off_track = False
-            text = font.render(f"Вы едете по трассе - Круги: {laps} Посещено чекпоинтов: {background.visited_checkpoints}/{len(background.checkpoints)}", True, BLACK)
+            text = font.render(f"Вы едете по трассе - Круги: {laps} Посещено чекпоинтов: {background.visited_checkpoints}", True, BLACK)
         else:
             if not last_off_track:
+                lap_start_time -= 2
                 off_track_counter += 1
                 last_off_track = True
-            text = font.render(f"Вы съехали с трассы - Круги: {laps} Посещено чекпоинтов: {background.visited_checkpoints}/{len(background.checkpoints)}", True, BLACK)
+            text = font.render(f"Вы съехали с трассы - Круги: {laps} Посещено чекпоинтов: {background.visited_checkpoints}", True, BLACK)
 
         # Проверка на то, достиг ли игрок нужного кол-ва кругов, если да, то вызываем функцию отрисовки финального экрана
         if laps >= maxLaps:

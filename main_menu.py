@@ -98,7 +98,7 @@ def main_menu(width, height):
                     # Обработка нажатия первой кнопки (переход к выбору уровня)
                     level = level_menu(width, height)  # Отображение меню выбора уровня
                     if level is not None:
-                        run_game(width, height, level)  # Запуск игры с выбранным уровнем
+                        run_game(width, height)  # Запуск игры с выбранным уровнем
 
         pygame.display.update()
 
