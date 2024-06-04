@@ -3,7 +3,6 @@ import sys
 from pygame.locals import *
 import math
 import time
-
 # Определение цветов
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -27,6 +26,7 @@ class Level:
         self.lap_count = 0  # Счетчик кругов
         self.visited_checkpoints = 0  # Счетчик посещенных чекпоинтов
 
+    
     # Функция отрисовки финального окна с конечным результатом
     def drawFinalWindow(self, width, height, screen, font, laps, off_track_counter, total_time):
         # Размеры окна и его прозрачность
@@ -54,9 +54,59 @@ class Level:
 
         # Рисуем окно на экране
         screen.blit(window_surface, (0, 0))
+        def open_main_menu():
+            import main_menu
+            main_menu.main_menu()
 
+        def start_ai_race():
+            print("AI race started")
+
+        def draw_button(text, rect):
+            pygame.draw.rect(screen, WHITE, rect)
+            text_surf = font.render(text, True, BLACK)
+            text_rect = text_surf.get_rect(center=rect.center)
+            screen.blit(text_surf, text_rect)
+
+        button_width = 200
+        button_height = 50
+        offset = 100  # Смещение вниз на 100 пикселей
+
+        button1_x = (width - button_width) // 2
+        button1_y = (height - button_height) // 2 + offset
+
+        button2_x = (width - button_width) // 2
+        button2_y = (height - button_height) // 2 + offset + 60  # Расстояние между кнопками
+
+
+        button1 = pygame.Rect(button1_x, button1_y, button_width, button_height)
+        button2 = pygame.Rect(button2_x, button2_y, button_width, button_height)
+
+
+        # Определение кнопок
+
+        # Рисование кнопок
+        draw_button("Главное меню", button1)
+        draw_button("Проезд ИИ", button2)
+        # Обработка событий
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == VIDEORESIZE:  # Обработка изменения размера окна
+                width = event.w
+                height = event.h
+                screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)  # Установка новых размеров окна
+                background = Level(width, height)
+            elif event.type == MOUSEBUTTONDOWN:  # Обработка нажатия кнопки мыши
+                mouse_pos = event.pos
+                if button1.collidepoint(mouse_pos):
+                    open_main_menu()
+                elif button2.collidepoint(mouse_pos):
+                    start_ai_race()
         # Обновляем экран
         pygame.display.flip()
+
+        return laps, off_track_counter, total_time
 
     def create_track(self):
         # Создание кольцевой трассы черного цвета
@@ -106,8 +156,8 @@ class Level:
         pygame.draw.circle(screen, WHITE, center, inner_radius)
 
         # Отрисовка чекпоинтов (для отладки, можно закомментировать)
-        for checkpoint in self.checkpoints:
-            pygame.draw.rect(screen, BLACK, checkpoint)
+        # for checkpoint in self.checkpoints:
+        #     pygame.draw.rect(screen, BLACK, checkpoint)
 
     def is_on_track(self, car_rect):
         x = car_rect.centerx
@@ -166,6 +216,7 @@ class Car(pygame.sprite.Sprite):
 
         self.rect.x += dx
         self.rect.y += dy
+
 
 def run_game(width, height):
     pygame.init()
