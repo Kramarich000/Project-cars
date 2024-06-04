@@ -5,6 +5,8 @@ import math
 import time
 import tensorflow as tf
 import numpy as np
+import os
+
 
 # Определение цветов
 WHITE = (255, 255, 255)
@@ -218,7 +220,9 @@ class Car(pygame.sprite.Sprite):
 
         self.rect.x += dx
         self.rect.y += dy
-        self.positions.append((self.rect.centerx, self.rect.centery))
+        new_position = (self.rect.centerx, self.rect.centery)
+        if not self.positions or self.positions[-1] != new_position:
+            self.positions.append(new_position)
 
     def get_positions(self):
         return self.positions
@@ -247,9 +251,11 @@ class AICar(pygame.sprite.Sprite):
         model = tf.keras.Sequential([
             tf.keras.layers.Input(shape=(self.max_positions, 2)),
             tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(512, activation='relu'),
+            tf.keras.layers.Dense(256, activation='relu'),
             tf.keras.layers.Dense(128, activation='relu'),
             tf.keras.layers.Dense(64, activation='relu'),
-            tf.keras.layers.Dense(5, activation='softmax')  # 5 классов: вперед, назад, влево, вправо, ничего не делать
+            tf.keras.layers.Dense(6, activation='softmax')  # 5 классов: вперед, назад, влево, вправо, ничего не делать
         ])
         model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
         return model
@@ -261,7 +267,7 @@ class AICar(pygame.sprite.Sprite):
         if len(self.positions) >= self.max_positions:
             positions = np.array(self.positions[-self.max_positions:])
             positions = positions.reshape(1, self.max_positions, 2)
-
+            print(len(self.positions))
             prediction = self.model.predict(positions)
             action = np.argmax(prediction)
 
@@ -316,7 +322,7 @@ class AICar(pygame.sprite.Sprite):
         x_train = np.array(x_train)
         y_train = np.array(y_train)
 
-        self.model.fit(x_train, y_train, epochs=10, verbose=1)
+        self.model.fit(x_train, y_train, epochs=10)
 
 
     def reset_positions(self):
@@ -460,7 +466,7 @@ def run_game(width, height):
         screen.blit(fps, (10, 170))
 
         pygame.display.update()
-        clock.tick(100)  # Установка FPS на 100
+        clock.tick(60)  # Установка FPS на 100
 
 if __name__ == "__main__":
     run_game(1910, 1070)  # Выбор начальных размеров окна
