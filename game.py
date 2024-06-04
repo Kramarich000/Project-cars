@@ -27,6 +27,40 @@ class Level:
         self.lap_count = 0  # Счетчик кругов
         self.visited_checkpoints = 0  # Счетчик посещенных чекпоинтов
 
+
+    #Функция отрисовки финального окна с конечным результатом
+    def drawFinalWindow(self, width, height, screen, font, laps, off_track_counter, total_time):
+        # Размеры окна и его прозрачность
+        window_width, window_height = width, height
+        transparency = 10  # 0 - полностью прозрачное, 255 - полностью непрозрачное
+
+        # Создаем поверхность для окна с поддержкой альфа-канала
+        window_surface = pygame.Surface((window_width, window_height), pygame.SRCALPHA)
+        window_surface.fill((0, 0, 0, transparency))  # Заливка окна черным цветом с прозрачностью
+
+        # Подготовка текста
+        laps_text = font.render(f'Количество кругов: {laps}', True, (255, 255, 255))
+        off_track_text = font.render(f'Количество выездов за трассу: {off_track_counter}', True, (255, 255, 255))
+        total_time_text = font.render(f'Общее время прохождения: {total_time}', True, (255, 255, 255))
+
+        # Вычисляем координаты текста для его размещения по центру окна
+        laps_text_rect = laps_text.get_rect(center=(window_width // 2, window_height // 2 - 50))
+        off_track_text_rect = off_track_text.get_rect(center=(window_width // 2, window_height // 2))
+        total_time_text_rect = total_time_text.get_rect(center=(window_width // 2, window_height // 2 + 50))
+
+        # Рисуем текст на поверхности окна
+        window_surface.blit(laps_text, laps_text_rect)
+        window_surface.blit(off_track_text, off_track_text_rect)
+        window_surface.blit(total_time_text, total_time_text_rect)
+
+        # Рисуем окно на экране
+        screen.blit(window_surface, (0, 0))
+
+        # Обновляем экран
+        pygame.display.flip()
+
+
+
     def create_track(self):
         # Создание кольцевой трассы черного цвета
         center = (self.width // 2, self.height // 2)
@@ -39,6 +73,8 @@ class Level:
                 distance_to_center = math.hypot(x - center[0], y - center[1])
                 if inner_radius < distance_to_center < outer_radius:
                     self.track_mask.set_at((x, y), 1)
+                    
+
     def check_checkpoints(self, car_rect):
         for i, checkpoint in enumerate(self.checkpoints):
             if car_rect.colliderect(checkpoint):
@@ -159,6 +195,7 @@ def run_game(width, height):
     last_off_track = False
     game_start_time = time.time()
     lap_start_time = game_start_time
+    maxLaps = 3 #Кол-во кругов для завершения игры
 
     # Главный игровой цикл
     running = True
@@ -204,6 +241,12 @@ def run_game(width, height):
                 off_track_counter += 1
                 last_off_track = True
             text = font.render(f"Вы съехали с трассы - Круги: {laps} Посещено чекпоинтов: {background.visited_checkpoints}/{len(background.checkpoints)}", True, BLACK)
+
+        #Проверка на то, достиг ли игрок нужного кол-ва кругов, если да, то вызываем функцию отрисовки финального экрана
+        if laps >= maxLaps:
+            background.drawFinalWindow(width, height, screen, font, laps, off_track_counter, f"{total_time:.2f} сек")
+            pygame.display.update()
+            continue 
 
         # Отображение элементов
         background.draw(screen)
