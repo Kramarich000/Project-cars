@@ -3,6 +3,9 @@ import sys
 from pygame.locals import *
 import math
 import time
+import tensorflow as tf
+import numpy as np
+
 # Определение цветов
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -163,6 +166,9 @@ class Level:
         x = car_rect.centerx
         y = car_rect.centery
         return self.track_mask.get_at((x, y))
+    
+    def start_ai_race(self):
+        self.ai_mode = True
 
     # def check_checkpoints(self, car_rect):
     #     for checkpoint in self.checkpoints:
@@ -174,48 +180,133 @@ class Level:
 class Car(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
-        self.original_image = pygame.image.load('MyCar.png')  # Загрузка изображения машины
-        self.original_image = pygame.transform.scale(self.original_image, (50, 100))  # Масштабирование изображения
+        self.original_image = pygame.image.load('MyCar.png')
+        self.original_image = pygame.transform.scale(self.original_image, (50, 100))
         self.image = self.original_image.copy()
         self.rect = self.image.get_rect(center=(x, y))
-        self.angle = 0  # Угол поворота машинки
-        self.speed = 0  # Скорость движения машинки
-        self.maxForwardSpeed = 12  # Максимальная скорость игрока вперёд
-        self.forwardAcceleration = 0.15  # Ускорение вперед
-        self.maxBackSpeed = -6  # Максимальная скорость игрока назад
-        self.backAcceleration = 0.1  # Ускорение назад
-        self.min_turn_speed = 1  # Минимальная скорость для поворота
+        self.angle = 0
+        self.speed = 0
+        self.maxForwardSpeed = 12
+        self.forwardAcceleration = 0.15
+        self.maxBackSpeed = -6
+        self.backAcceleration = 0.1
+        self.min_turn_speed = 1
+        self.positions = []
 
     def update(self, keys):
         if keys[pygame.K_UP]:
-            self.speed += self.forwardAcceleration  # Постепенное увеличение скорости
-            self.speed = min(self.speed, self.maxForwardSpeed)  # Ограничение максимальной скорости
+            self.speed += self.forwardAcceleration
+            self.speed = min(self.speed, self.maxForwardSpeed)
         elif keys[pygame.K_DOWN]:
-            self.speed -= self.backAcceleration  # Постепенное увеличение скорости назад
-            self.speed = max(self.speed, self.maxBackSpeed)  # Ограничение скорости назад
-        else:  # Постепенная остановка машины
+            self.speed -= self.backAcceleration
+            self.speed = max(self.speed, self.maxBackSpeed)
+        else:
             if self.speed > 0:
                 self.speed -= 4 * self.backAcceleration
             if self.speed < 0:
                 self.speed += 2 * self.forwardAcceleration
 
-        # Поворот только при движении
-        if abs(self.speed) > self.min_turn_speed:  # Поворот возможен только при скорости выше минимальной
+        if abs(self.speed) > self.min_turn_speed:
             if keys[pygame.K_LEFT]:
-                self.angle += 5  # Увеличение угла поворота влево
+                self.angle += 5
             elif keys[pygame.K_RIGHT]:
-                self.angle -= 5  # Уменьшение угла поворота вправо
+                self.angle -= 5
 
-        # Поворот изображения машинки
         self.image = pygame.transform.rotate(self.original_image, self.angle)
         self.rect = self.image.get_rect(center=self.rect.center)
 
-        # Вычисление компонент вектора движения на основе угла поворота и скорости
         dx = math.cos(math.radians(self.angle + 90)) * self.speed
         dy = math.sin(math.radians(-self.angle - 90)) * self.speed
 
         self.rect.x += dx
         self.rect.y += dy
+        self.positions.append((self.rect.centerx, self.rect.centery))
+
+    def get_positions(self):
+        return self.positions
+
+    def reset_positions(self):
+        self.positions = []
+class AICar(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.original_image = pygame.image.load('AICar.png')  # Загрузка изображения AICar.png
+        self.original_image = pygame.transform.scale(self.original_image, (50, 100))
+        self.image = self.original_image.copy()
+        self.rect = self.image.get_rect(center=(x, y))
+        self.angle = 0
+        self.speed = 0
+        self.maxForwardSpeed = 8
+        self.maxBackSpeed = -4
+        self.forwardAcceleration = 0.15
+        self.backAcceleration = 0.1
+        self.min_turn_speed = 2
+        self.positions = []
+        self.max_positions = 20
+        self.model = self.create_model()
+
+    def create_model(self):
+        model = tf.keras.Sequential([
+            tf.keras.layers.Input(shape=(self.max_positions, 2)),
+            tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(128, activation='relu'),
+            tf.keras.layers.Dense(64, activation='relu'),
+            tf.keras.layers.Dense(3, activation='softmax')
+        ])
+        model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+        return model
+
+
+    # В методе update класса AICar
+    def update(self, player_rect, screen):
+        # Отбрасываем старые позиции, если их больше, чем self.max_positions
+        self.positions = self.positions[-self.max_positions:]
+
+        # Добавляем текущее положение машины в список позиций
+        self.positions.append((self.rect.centerx, self.rect.centery))
+
+        if len(self.positions) >= self.max_positions:
+            positions = np.array(self.positions[-self.max_positions:])
+            positions = positions.reshape(1, self.max_positions, 2)
+
+            prediction = self.model.predict(positions)
+            action = np.argmax(prediction)
+
+            if action == 0:
+                self.angle += 5
+            elif action == 1:
+                self.angle -= 5
+
+        dx = math.cos(math.radians(self.angle + 90)) * self.speed
+        dy = math.sin(math.radians(-self.angle - 90)) * self.speed
+
+        # Проверка, чтобы машина не выезжала за границы экрана
+        new_x = self.rect.x + dx
+        new_y = self.rect.y + dy
+        if 0 <= new_x <= screen.get_width() - self.rect.width:
+            self.rect.x = new_x
+        if 0 <= new_y <= screen.get_height() - self.rect.height:
+            self.rect.y = new_y
+
+        self.positions.append((self.rect.centerx, self.rect.centery))
+
+
+    def train_model(self, car_positions):
+        x_train = []
+        y_train = []
+
+        for i in range(len(car_positions) - self.max_positions):
+            x_train.append(car_positions[i:i + self.max_positions])
+            action = 0 if car_positions[i + self.max_positions][0] > car_positions[i][0] else 1
+            y_train.append(action)
+
+        x_train = np.array(x_train)
+        y_train = np.array(y_train)
+
+        self.model.fit(x_train, y_train, epochs=10, verbose=1)
+
+    def reset_positions(self):
+        self.positions = []
 
 
 def run_game(width, height):
@@ -229,7 +320,8 @@ def run_game(width, height):
 
     # Переменные для машины
     car = Car(width // 2, height // 2)
-    all_sprites = pygame.sprite.Group(car)
+    ai_car = AICar(width // 2 + 100, height // 2)
+    all_sprites = pygame.sprite.Group(car, ai_car)
     
     # Загрузка трассы
     background = Level(width, height)
@@ -243,12 +335,12 @@ def run_game(width, height):
     lap_start_time = game_start_time
     maxLaps = 3  # Кол-во кругов для завершения игры
 
+    ai_mode = False  # Режим управления ИИ
+
     def open_main_menu():
         import main_menu
         main_menu.main_menu(1910, 1070)
 
-    def start_ai_race():
-        print("AI race started")
 
     def draw_button(text, rect):
         pygame.draw.rect(screen, BLACK, rect)
@@ -256,11 +348,12 @@ def run_game(width, height):
         text_rect = text_surf.get_rect(center=rect.center)
         screen.blit(text_surf, text_rect)
 
-    button1 = pygame.Rect(10, 200, 200, 50)
-    button2 = pygame.Rect(10, 260, 200, 50)
+    button1 = pygame.Rect(5, 200, 200, 50)
+    button2 = pygame.Rect(5, 260, 200, 50)
 
     # Главный игровой цикл
     running = True
+    # ai_race_started = False  # Флаг для отслеживания начала AI гонки
     while running:
         screen.fill(BLACK)  # Заполнение экрана черным цветом
 
@@ -279,7 +372,8 @@ def run_game(width, height):
                 if button1.collidepoint(mouse_pos):
                     open_main_menu()
                 elif button2.collidepoint(mouse_pos):
-                    start_ai_race()
+                    ai_mode = True  # Начинаем AI гонку
+                    ai_car.train_model(car.get_positions())  # Обучаем модель на позициях машины игрока
 
         #Проверка на то, достиг ли игрок нужного кол-ва кругов, если да, то вызываем функцию отрисовки финального экрана
         if laps >= maxLaps:
@@ -287,11 +381,18 @@ def run_game(width, height):
             pygame.display.update()
             continue 
         
+        
         # Получение нажатых клавиш
         keys = pygame.key.get_pressed()
 
+        if not ai_mode:
+            car.update(keys)
+        else:
+            ai_car.update(car.rect, screen)
+
         # Обновление машины
-        car.update(keys)
+        # car.update(keys)
+        # ai_car.update(car.rect)
 
         # Ограничение движения машины в пределах экрана
         car.rect.x = max(0, min(width - car.rect.width, car.rect.x))
@@ -341,6 +442,9 @@ def run_game(width, height):
 
         draw_button("Главное меню", button1)
         draw_button("Проезд ИИ", button2)
+
+        fps = font.render(f"FPS: {int(clock.get_fps())}", True, BLACK)
+        screen.blit(fps, (10, 170))
 
         pygame.display.update()
         clock.tick(60)  # Установка FPS на 60
