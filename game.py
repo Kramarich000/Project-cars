@@ -221,9 +221,9 @@ class Car(pygame.sprite.Sprite):
         self.rect.x += dx
         self.rect.y += dy
         new_position = (self.rect.centerx, self.rect.centery)
-        if not self.positions or self.positions[-1] != new_position:
+        if not self.positions or self.positions[-1] != new_position and self.speed != 0:
             self.positions.append(new_position)
-
+            print(f'positions:{self.positions}')
     def get_positions(self):
         return self.positions
 
@@ -232,55 +232,60 @@ class Car(pygame.sprite.Sprite):
 class AICar(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
-        self.original_image = pygame.image.load('AICar.png')  # Загрузка изображения AICar.png
+        self.original_image = pygame.image.load('AICar.png')
         self.original_image = pygame.transform.scale(self.original_image, (50, 100))
         self.image = self.original_image.copy()
         self.rect = self.image.get_rect(center=(x, y))
         self.angle = 0
         self.speed = 0
-        self.maxForwardSpeed = 8
-        self.maxBackSpeed = -4
+        self.maxForwardSpeed = 12
+        self.maxBackSpeed = -6
         self.forwardAcceleration = 0.15
         self.backAcceleration = 0.1
-        self.min_turn_speed = 2
+        self.min_turn_speed = 1
         self.positions = []
         self.max_positions = 20
         self.model = self.create_model()
+        self.frames_since_last_update = 0  # Счетчик кадров
 
     def create_model(self):
         model = tf.keras.Sequential([
             tf.keras.layers.Input(shape=(self.max_positions, 2)),
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(512, activation='relu'),
-            tf.keras.layers.Dense(256, activation='relu'),
             tf.keras.layers.Dense(128, activation='relu'),
             tf.keras.layers.Dense(64, activation='relu'),
-            tf.keras.layers.Dense(6, activation='softmax')  # 5 классов: вперед, назад, влево, вправо, ничего не делать
+            tf.keras.layers.Dense(5, activation='softmax')
         ])
         model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
         return model
 
     def update(self, player_rect, screen):
-        self.positions = self.positions[-self.max_positions:]
         self.positions.append((self.rect.centerx, self.rect.centery))
 
         if len(self.positions) >= self.max_positions:
-            positions = np.array(self.positions[-self.max_positions:])
-            positions = positions.reshape(1, self.max_positions, 2)
-            print(len(self.positions))
-            prediction = self.model.predict(positions)
-            action = np.argmax(prediction)
+            self.frames_since_last_update += 1
+            if self.frames_since_last_update >= 10:  # Обновление каждые 10 кадров
+                positions = np.array(self.positions[-self.max_positions:])
+                positions = positions.reshape(1, self.max_positions, 2)
+                # print(f'positions:{positions}')
+                prediction = self.model.predict(positions, verbose=0)
+                action = np.argmax(prediction)
+                print(f'action:{action}')
+               
+            
+                if action == 0:
+                    self.speed += self.forwardAcceleration
+                    self.speed = min(self.speed, self.maxForwardSpeed)
+                elif action == 1:
+                    self.speed -= self.backAcceleration
+                    self.speed = max(self.speed, self.maxBackSpeed)
+                elif action == 2 and abs(self.speed) > self.min_turn_speed:
+                    self.angle += 5
+                elif action == 3 and abs(self.speed) > self.min_turn_speed:
+                    self.angle -= 5
 
-            if action == 0:
-                self.speed += self.forwardAcceleration
-                self.speed = min(self.speed, self.maxForwardSpeed)
-            elif action == 1:
-                self.speed -= self.backAcceleration
-                self.speed = max(self.speed, self.maxBackSpeed)
-            elif action == 2:
-                self.angle += 5
-            elif action == 3:
-                self.angle -= 5
+                self.frames_since_last_update = 0
+                print(f'positions:{positions}')
 
         self.image = pygame.transform.rotate(self.original_image, self.angle)
         self.rect = self.image.get_rect(center=self.rect.center)
@@ -295,8 +300,6 @@ class AICar(pygame.sprite.Sprite):
         if 0 <= new_y <= screen.get_height() - self.rect.height:
             self.rect.y = new_y
 
-        self.positions.append((self.rect.centerx, self.rect.centery))
-
     def train_model(self, car_positions):
         x_train = []
         y_train = []
@@ -307,9 +310,9 @@ class AICar(pygame.sprite.Sprite):
             dy = car_positions[i + self.max_positions][1] - car_positions[i + self.max_positions - 1][1]
             
             if dx > 0:
-                action = 0  # Вперед
+                action = 1  # Вперед
             elif dx < 0:
-                action = 1  # Назад
+                action = 0  # Назад
             elif dy > 0:
                 action = 2  # Влево
             elif dy < 0:
@@ -339,8 +342,8 @@ def run_game(width, height):
     clock = pygame.time.Clock()  # Создание объекта Clock для контроля FPS
 
     # Переменные для машины
-    car = Car(width // 2, height // 2)
-    ai_car = AICar(width // 2 + 100, height // 2)
+    car = Car(width - 200, height // 2)
+    ai_car = AICar(width - 200, height // 2)
     all_sprites = pygame.sprite.Group(car, ai_car)
     
     # Загрузка трассы
