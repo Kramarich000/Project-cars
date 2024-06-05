@@ -223,12 +223,14 @@ class Car(pygame.sprite.Sprite):
         new_position = (self.rect.centerx, self.rect.centery)
         if not self.positions or self.positions[-1] != new_position and self.speed != 0:
             self.positions.append(new_position)
-            print(f'positions:{self.positions}')
+
     def get_positions(self):
+        # print(f'self.positions:{self.positions}')
         return self.positions
 
     def reset_positions(self):
         self.positions = []
+
 class AICar(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
@@ -250,75 +252,87 @@ class AICar(pygame.sprite.Sprite):
     def create_model(self):
         model = tf.keras.Sequential([
             tf.keras.layers.Input(shape=(None, 2)),
-            tf.keras.layers.Masking(mask_value=0.0),
-            tf.keras.layers.LSTM(64, activation='relu'),  # Уменьшаем количество скрытых единиц
-            tf.keras.layers.Dense(32, activation='relu'), 
+            # tf.keras.layers.Masking(mask_value=0.0),
+            tf.keras.layers.Dense(128, activation='relu'),
+            # tf.keras.layers.Dense(100, activation='relu'),
+            tf.keras.layers.LSTM(90, activation='relu'),  # Уменьшаем количество скрытых единиц
             # tf.keras.layers.Dropout(0.5),  # Добавляем слой dropout
+            tf.keras.layers.Dense(64, activation='relu'),
+            # tf.keras.layers.Dense(32, activation='relu'),
+            # tf.keras.layers.Dense(16, activation='relu'),
             tf.keras.layers.Dense(9, activation='softmax')
         ])
-        model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+        optimizer = tf.keras.optimizers.Adam(learning_rate=0.0001)
+        model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
         return model
 
-    def update(self, player_rect, screen):
-        self.positions.append((self.rect.centerx, self.rect.centery))
-
+    def update(self, actions, screen):
         self.frames_since_last_update += 1
-        if self.frames_since_last_update >= 10:  # Обновление каждые 10 кадров
-            positions = np.array(self.positions)
-            positions = positions.reshape(1, -1, 2)
-            print(f'positions:{positions}')
-            prediction = self.model.predict(positions, verbose=0)
-            action = np.argmax(prediction)
-            print(f'action:{action}')
-            if action == 0:  # Вперед
-                self.speed += self.forwardAcceleration
-                self.speed = min(self.speed, self.maxForwardSpeed)
-            elif action == 1:  # Назад
-                self.speed -= self.backAcceleration
-                self.speed = max(self.speed, self.maxBackSpeed)
-            elif action == 2:  # Влево
-                if abs(self.speed) > self.min_turn_speed:
-                    self.angle += 5
-            elif action == 3:  # Вправо
-                if abs(self.speed) > self.min_turn_speed:
-                    self.angle -= 5
-            elif action == 4:  # Вперед и влево
-                self.speed += self.forwardAcceleration
-                self.speed = min(self.speed, self.maxForwardSpeed)
-                if abs(self.speed) > self.min_turn_speed:
-                    self.angle += 5
-            elif action == 5:  # Вперед и вправо
-                self.speed += self.forwardAcceleration
-                self.speed = min(self.speed, self.maxForwardSpeed)
-                if abs(self.speed) > self.min_turn_speed:
-                    self.angle -= 5
-            elif action == 6:  # Назад и влево
-                self.speed -= self.backAcceleration
-                self.speed = max(self.speed, self.maxBackSpeed)
-                if abs(self.speed) > self.min_turn_speed:
-                    self.angle += 5
-            elif action == 7:  # Назад и вправо
-                self.speed -= self.backAcceleration
-                self.speed = max(self.speed, self.maxBackSpeed)
-                if abs(self.speed) > self.min_turn_speed:
-                    self.angle -= 5
-            else:  # Ничего не делать
-                self.speed = 0
+        if self.frames_since_last_update:  # Обновление каждые 10 кадров
+
+            # self.angle_change = 0
+            # self.speed_change = 0
+            print(f'actions {actions}')
+            
+            for action in actions:
+                print(f'action {action}')
+                if action == 0:  # Вперед
+                    self.speed += self.forwardAcceleration
+                    self.speed = min(self.speed, self.maxForwardSpeed)
+                elif action == 1:  # Назад
+                    self.speed -= self.backAcceleration
+                    self.speed = max(self.speed, self.maxBackSpeed)
+                # if 2 in actions:  # Влево
+                #     if abs(self.speed) > self.min_turn_speed:
+                #         self.angle += 5
+                # if 3 in actions:  # Вправо
+                #     if abs(self.speed) > self.min_turn_speed:
+                #         self.angle -= 5
+                if action == 4:  # Вперед и влево
+                    self.speed += self.forwardAcceleration
+                    self.speed = min(self.speed, self.maxForwardSpeed)
+                    if abs(self.speed) > self.min_turn_speed:
+                        self.angle += 5
+                if action == 5:  # Вперед и вправо
+                    self.speed += self.forwardAcceleration
+                    self.speed = min(self.speed, self.maxForwardSpeed)
+                    if abs(self.speed) > self.min_turn_speed:
+                        self.angle -= 5
+                if action == 6:  # Назад и влево
+                    self.speed -= self.backAcceleration
+                    self.speed = max(self.speed, self.maxBackSpeed)
+                    if abs(self.speed) > self.min_turn_speed:
+                        self.angle += 5
+                if action == 7:  # Назад и вправо
+                    self.speed -= self.backAcceleration
+                    self.speed = max(self.speed, self.maxBackSpeed)
+                    if abs(self.speed) > self.min_turn_speed:
+                        self.angle -= 5
 
             self.frames_since_last_update = 0
+        # Изменение скорости с учетом максимальных и минимальных значений
+        # self.speed += self.speed_change
+        # if self.speed > self.maxForwardSpeed:
+        #     self.speed = self.maxForwardSpeed
+        # elif self.speed < self.maxBackSpeed:
+        #     self.speed = self.maxBackSpeed
 
-        self.image = pygame.transform.rotate(self.original_image, self.angle)
-        self.rect = self.image.get_rect(center=self.rect.center)
+        # Изменение угла поворота
+        # self.angle += self.angle_change
 
-        dx = math.cos(math.radians(self.angle + 90)) * self.speed
-        dy = math.sin(math.radians(-self.angle - 90)) * self.speed
+            self.image = pygame.transform.rotate(self.image, self.angle)
+            self.rect = self.image.get_rect(center=self.rect.center)
 
-        new_x = self.rect.x + dx
-        new_y = self.rect.y + dy
-        if 0 <= new_x <= screen.get_width() - self.rect.width:
-            self.rect.x = new_x
-        if 0 <= new_y <= screen.get_height() - self.rect.height:
-            self.rect.y = new_y
+            dx = math.cos(math.radians(self.angle + 90)) * self.speed
+            dy = math.sin(math.radians(-self.angle - 90)) * self.speed
+
+            new_x = self.rect.x + dx
+            new_y = self.rect.y + dy
+            if 0 <= new_x <= screen.get_width() - self.rect.width:
+                self.rect.x = new_x
+            if 0 <= new_y <= screen.get_height() - self.rect.height:
+                self.rect.y = new_y
 
     def train_model(self, car_positions):
         x_train = []
@@ -328,34 +342,33 @@ class AICar(pygame.sprite.Sprite):
             x_train.append(car_positions[:i + 1])  # Используем все доступные позиции до текущего момента
             dx = car_positions[i + 1][0] - car_positions[i][0]
             dy = car_positions[i + 1][1] - car_positions[i][1]
-            print(dx, dy)
+            
+            action = 8  # Ничего не делать по умолчанию
+
             if dx > 0 and dy < 0:
                 action = 0  # Вперед
             elif dx < 0 and dy > 0:
                 action = 1  # Назад
-            elif dy > 0 and dx < 0:
-                action = 2  # Влево
-            elif dy < 0 and dx > 0:
-                action = 3  # Вправо
+            # elif dx < 0 and dy == 0:
+            #     action = 2  # Влево
+            # elif dx > 0 and dy == 0:
+            #     action = 3  # Вправо
             elif dx > 0 and dy > 0:
                 action = 4  # Вперед и влево
-            elif dx > 0 and dy < 0:
-                action = 5  # Вперед и вправо
             elif dx < 0 and dy > 0:
-                action = 6  # Назад и влево
+                action = 5  # Назад и влево
             elif dx < 0 and dy < 0:
-                action = 7  # Назад и вправо
-            else:
-                action = 8  # Ничего не делать
-
+                action = 6  # Назад и вправо
+            elif dx > 0 and dy < 0:
+                action = 7  # Вперед и вправо
+            # print(f'action{action}')
             y_train.append(action)
 
-        # Преобразование входных данных для модели с учетом переменной длины последовательностей
         x_train = tf.keras.preprocessing.sequence.pad_sequences(x_train, dtype='float32')
         y_train = np.array(y_train)
 
         self.model.fit(x_train, y_train, epochs=10)
-
+        return y_train
 
     def reset_positions(self):
         self.positions = []
@@ -405,6 +418,8 @@ def run_game(width, height):
 
     # Главный игровой цикл
     running = True
+    actions_true = False
+    actions_HZ = False
     # ai_race_started = False  # Флаг для отслеживания начала AI гонки
     while running:
         screen.fill(BLACK)  # Заполнение экрана черным цветом
@@ -425,7 +440,14 @@ def run_game(width, height):
                     open_main_menu()
                 elif button2.collidepoint(mouse_pos):
                     ai_mode = True  # Начинаем AI гонку
-                    ai_car.train_model(car.get_positions())  # Обучаем модель на позициях машины игрока
+                    actions_true = True
+                    if actions_true: 
+                        actions = ai_car.train_model(car.get_positions())
+                        print(f'ff') 
+                        actions_true = False 
+                        # Обучаем модель на позициях машины игрока
+                        # print(f'actions{actions}')
+                    # ai_car.update(actions, screen)  # Обновляем AI машину
 
         #Проверка на то, достиг ли игрок нужного кол-ва кругов, если да, то вызываем функцию отрисовки финального экрана
         if laps >= maxLaps:
@@ -439,7 +461,12 @@ def run_game(width, height):
         if not ai_mode:
             car.update(keys)
         else:
-            ai_car.update(car.rect, screen)
+            if not actions_HZ:
+                ai_car.update(actions, screen)
+                print(f'qwerty')
+                actions_HZ = True
+            else: 
+                pass
 
         # Обновление машины
         # car.update(keys)
