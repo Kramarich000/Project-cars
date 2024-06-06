@@ -276,16 +276,12 @@ class AICar(pygame.sprite.Sprite):
         df = pd.read_csv('car_data_val.csv')  # Предполагая, что файл находится в том же каталоге, что и ваш скрипт
 
         # Подготовка данных для обучения
-        df['dX'] = df['X'].diff().fillna(0)
-        df['dY'] = df['Y'].diff().fillna(0)
-        df['angle'] = np.arctan2(df['dY'], df['dX'])
-
-        X = df[['dX', 'dY', 'angle']].values  # Признаки (изменения координат и угол)
+        X = df[['X', 'Y']].values  # Признаки (позиции машины)
         y = df['Keys'].values  # Целевая переменная (записанные клавиши)
 
         # Преобразование признаков для подачи на вход LSTM модели
         X = X.reshape((X.shape[0], 1, X.shape[1]))  # Форма: (количество образцов, количество временных шагов, количество признаков)
-
+        print(f'X:{X}')
 
         # Создание модели LSTM
         model = Sequential([
