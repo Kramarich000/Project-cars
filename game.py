@@ -6,7 +6,9 @@ import time
 import tensorflow as tf
 import numpy as np
 import os
-
+import pandas as pd
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, LSTM
 
 # Определение цветов
 WHITE = (255, 255, 255)
@@ -192,14 +194,20 @@ class Car(pygame.sprite.Sprite):
         self.backAcceleration = 0.1
         self.min_turn_speed = 1
         self.positions = []
+        self.keys_recorded = []
 
     def update(self, keys):
+        pressed_key = None
+        
+        # Обновление параметров машинки на основе нажатых клавиш
         if keys[pygame.K_UP]:
             self.speed += self.forwardAcceleration
             self.speed = min(self.speed, self.maxForwardSpeed)
+            pressed_key = 0  # UP
         elif keys[pygame.K_DOWN]:
             self.speed -= self.backAcceleration
             self.speed = max(self.speed, self.maxBackSpeed)
+            pressed_key = 1  # DOWN
         else:
             if self.speed > 0:
                 self.speed -= 4 * self.backAcceleration
@@ -209,8 +217,10 @@ class Car(pygame.sprite.Sprite):
         if abs(self.speed) > self.min_turn_speed:
             if keys[pygame.K_LEFT]:
                 self.angle += 5
+                pressed_key = 2  # LEFT
             elif keys[pygame.K_RIGHT]:
                 self.angle -= 5
+                pressed_key = 3  # RIGHT
 
         self.image = pygame.transform.rotate(self.original_image, self.angle)
         self.rect = self.image.get_rect(center=self.rect.center)
@@ -221,12 +231,24 @@ class Car(pygame.sprite.Sprite):
         self.rect.x += dx
         self.rect.y += dy
         new_position = (self.rect.centerx, self.rect.centery)
+
         if not self.positions or self.positions[-1] != new_position and self.speed != 0:
             self.positions.append(new_position)
-
+        
+        if pressed_key is not None:
+            self.keys_recorded.append(pressed_key)
+        return self.keys_recorded
+    
+    def get_keys_recorded(self):
+        # print(f'qwer: {len(self.keys_recorded)}')
+        return self.keys_recorded
+    
     def get_positions(self):
-        print(f'self.positions_1:{self.positions}')
+        # print(f'qwert: {len(self.positions)}')
         return self.positions
+
+    def reset_keys_recorded(self):
+        self.keys_recorded = []
 
     def reset_positions(self):
         self.positions = []
@@ -246,62 +268,70 @@ class AICar(pygame.sprite.Sprite):
         self.backAcceleration = 0.1
         self.min_turn_speed = 1
         self.positions = []
-        self.model = None
+        self.model = None  
         self.frames_since_last_update = 0  # Счетчик кадров
 
     def create_model(self):
-        model = tf.keras.Sequential([
-            tf.keras.layers.Input(shape=(None, 2)),
-            tf.keras.layers.Dense(128, activation='relu'),
-            tf.keras.layers.LSTM(90, activation='relu'),
-            tf.keras.layers.Dense(64, activation='relu'),
-            tf.keras.layers.Dense(7, activation='softmax')
+        # Загрузка данных из файла
+        df = pd.read_csv('car_data_val.csv')  # Предполагая, что файл находится в том же каталоге, что и ваш скрипт
+
+        # Подготовка данных для обучения
+        df['dX'] = df['X'].diff().fillna(0)
+        df['dY'] = df['Y'].diff().fillna(0)
+        df['angle'] = np.arctan2(df['dY'], df['dX'])
+
+        X = df[['dX', 'dY', 'angle']].values  # Признаки (изменения координат и угол)
+        y = df['Keys'].values  # Целевая переменная (записанные клавиши)
+
+        # Преобразование признаков для подачи на вход LSTM модели
+        X = X.reshape((X.shape[0], 1, X.shape[1]))  # Форма: (количество образцов, количество временных шагов, количество признаков)
+
+
+        # Создание модели LSTM
+        model = Sequential([
+            LSTM(64, input_shape=(X.shape[1], X.shape[2])),
+            Dense(5, activation='softmax')  # Выходной слой с софтмакс активацией, так как у вас 4 возможных клавиши
         ])
-        optimizer = tf.keras.optimizers.Adam(learning_rate=0.0001)
-        model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
-        # Обучение модели при создании
-        # self.train_model(model, car_positions)
+        # Компиляция модели
+        model.compile(optimizer='adam',
+                    loss='sparse_categorical_crossentropy',
+                    metrics=['accuracy'])
 
+        # Обучение модели
+        model.fit(X, y, epochs=10, batch_size=32, validation_split=0.2)
         return model
 
-    def update(self, actions, screen):
-        # Проверяем, есть ли действия для обработки
-        if self.frames_since_last_update < len(actions):
-            current_action = actions[self.frames_since_last_update]  # Получаем текущее действие
-            print(f'Current action: {current_action}, Frame: {self.frames_since_last_update}')
-            
-            # Выполняем действие
-            if current_action == 0:  # Вперед
-                self.speed += self.forwardAcceleration
-                self.speed = min(self.speed, self.maxForwardSpeed)
-            elif current_action == 1:  # Назад
-                self.speed -= self.backAcceleration
-                self.speed = max(self.speed, self.maxBackSpeed)
-            elif current_action == 2:  # Вперед и влево
-                self.speed += self.forwardAcceleration
-                self.speed = min(self.speed, self.maxForwardSpeed)
-                if abs(self.speed) > self.min_turn_speed:
-                    self.angle += 5
-            elif current_action == 3:  # Вперед и вправо
-                self.speed += self.forwardAcceleration
-                self.speed = min(self.speed, self.maxForwardSpeed)
-                if abs(self.speed) > self.min_turn_speed:
-                    self.angle -= 5
-            elif current_action == 4:  # Назад и влево
-                self.speed -= self.backAcceleration
-                self.speed = max(self.speed, self.maxBackSpeed)
-                if abs(self.speed) > self.min_turn_speed:
-                    self.angle += 5
-            elif current_action == 5:  # Назад и вправо
-                self.speed -= self.backAcceleration
-                self.speed = max(self.speed, self.maxBackSpeed)
-                if abs(self.speed) > self.min_turn_speed:
-                    self.angle -= 5
-
-            self.frames_since_last_update += 1  # Увеличиваем счетчик только после выполнения действия
+    def update(self, screen):
+        current_position = (self.rect.centerx, self.rect.centery)
         
+        X = np.array([[current_position[0], current_position[1]]])
+        X = X.reshape((X.shape[0], 1, X.shape[1]))
+        actions_probabilities = self.model.predict(X)
 
+        print(f'X1:{X}')
+
+        predicted_action = np.argmax(actions_probabilities)
+
+        if predicted_action == 0:  # Вперед
+            self.speed += self.forwardAcceleration
+            self.speed = min(self.speed, self.maxForwardSpeed)
+        elif predicted_action == 1:  # Назад
+            self.speed -= self.backAcceleration
+            self.speed = max(self.speed, self.maxBackSpeed)
+        elif predicted_action == 2:  # Вперед и влево
+            self.speed += self.forwardAcceleration
+            self.speed = min(self.speed, self.maxForwardSpeed)
+            if abs(self.speed) > self.min_turn_speed:
+                self.angle += 5
+        elif predicted_action == 3:  # Вперед и вправо
+            self.speed += self.forwardAcceleration
+            self.speed = min(self.speed, self.maxForwardSpeed)
+            if abs(self.speed) > self.min_turn_speed:
+                self.angle -= 5
+        else:
+            self.speed = 0
+        
         # Поворот изображения и обновление положения
         self.image = pygame.transform.rotate(self.original_image, self.angle)
         self.rect = self.image.get_rect(center=self.rect.center)
@@ -317,40 +347,30 @@ class AICar(pygame.sprite.Sprite):
             self.rect.y = new_y
 
             
-    def train_model(self, model, car_positions):
-        x_train = []
-        y_train = []
+    # def train_model(self, model, car_positions, keys_recorded):
+    #     x_train = tf.keras.preprocessing.sequence.pad_sequences(car_positions, dtype='float32')
+    #     y_train = np.array(keys_recorded)
+    #     print(f'x_train:{x_train}')
+    #     print(f'y_train:{y_train}')
+    #     max_size = max(len(x_train), len(y_train))
+    #     # Дополнение x_train нулями, если его размер меньше max_size
+    #     if len(x_train) < max_size:
+    #         pad_size = max_size - len(x_train)
+    #         x_train = np.pad(x_train, ((0, pad_size), (0, 0)), mode='constant', constant_values=0)
 
-        for i in range(len(car_positions) - 1):
-            x_train.append(car_positions[:i + 1])  # Используем все доступные позиции до текущего момента
-            dx = car_positions[i + 1][0] - car_positions[i][0]
-            dy = car_positions[i + 1][1] - car_positions[i][1]
-            
-            action = 6  # Ничего не делать по умолчанию
+    #     # Дополнение y_train нулями, если его размер меньше max_size
+    #     if len(y_train) < max_size:
+    #         pad_size = max_size - len(y_train)
+    #         y_train = np.pad(y_train, (0, pad_size), mode='constant', constant_values=0)
 
-            if dx == 0 and dy < 0:
-                action = 0  # Вперед
-            elif dx == 0 and dy > 0:
-                action = 1  # Назад
-            elif dx < 0 and dy < 0:
-                action = 2  # Вперед и влево
-            elif dx < 0 and dy > 0:
-                action = 3  # Назад и влево
-            elif dx > 0 and dy > 0:
-                action = 4  # Назад и вправо
-            elif dx > 0 and dy < 0:
-                action = 5  # Вперед и вправо
-            
-            y_train.append(action)
+    #     # Проверка размеров
+    #     print("Размер x_train:", x_train.shape)
+    #     print("Размер y_train:", y_train.shape)
 
-        x_train = tf.keras.preprocessing.sequence.pad_sequences(x_train, dtype='float32')
-        print(f'x_train: {x_train}')
-        print(f'y_train: {y_train}')
-        y_train = np.array(y_train)
+    #     # Обучение модели
+    #     model.fit(x_train, y_train, epochs=10, batch_size=32, validation_split=0.2)
 
-        model.fit(x_train, y_train, epochs=10)
-        # print(f'y_train: {y_train}')
-        return y_train
+    #     return y_train
 
     def reset_positions(self):
         self.positions = []
@@ -425,9 +445,11 @@ def run_game(width, height):
                     ai_mode = True  # Начинаем AI гонку
                     actions_true = True
                     if actions_true: 
-                        car_positions = car.get_positions()
+                        # car_positions = car.get_positions()
+                        # keys_recorded = car.get_keys_recorded()
                         ai_car.model = ai_car.create_model() 
-                        actions = ai_car.train_model(ai_car.model, car_positions) 
+                        ai_car.update(screen)
+                        # actions = ai_car.create_model(ai_car.model, car.get_positions(), car.get_keys_recorded()) 
                         print(f'ff') 
                         # actions_true = False 
                         # Обучаем модель на позициях машины игрока
@@ -446,7 +468,7 @@ def run_game(width, height):
         if not ai_mode:
             car.update(keys)
         else:
-            ai_car.update(actions, screen)
+            ai_car.update(screen)
 
         # Обновление машины
         # car.update(keys)
@@ -503,6 +525,28 @@ def run_game(width, height):
 
         fps = font.render(f"FPS: {int(clock.get_fps())}", True, BLACK)
         screen.blit(fps, (10, 170))
+
+
+        keys_list, positions_list = car.get_keys_recorded(), car.get_positions()
+        # Создание DataFrame
+        data = {'X': [], 'Y': [], 'Keys': []}
+        # Заполнение данных в DataFrame
+        for i in range(max(len(keys_list), len(positions_list))):
+            if i < len(keys_list):
+                data['Keys'].append(keys_list[i])
+            else:
+                data['Keys'].append(4)  # Заполнение нулями, если данные отсутствуют
+
+            if i < len(positions_list):
+                data['X'].append(positions_list[i][0])
+                data['Y'].append(positions_list[i][1])
+            else:
+                data['X'].append(4)  # Заполнение нулями, если данные отсутствуют
+                data['Y'].append(4)  # Заполнение нулями, если данные отсутствуют
+
+        df = pd.DataFrame(data)
+
+        df.to_csv('car_data.csv', index=False)
 
         pygame.display.update()
         clock.tick(60)  # Установка FPS на 100
