@@ -249,19 +249,19 @@ class AICar(pygame.sprite.Sprite):
         self.model = None
         self.frames_since_last_update = 0  # Счетчик кадров
 
-    def create_model(self, car_positions):
+    def create_model(self):
         model = tf.keras.Sequential([
             tf.keras.layers.Input(shape=(None, 2)),
             tf.keras.layers.Dense(128, activation='relu'),
             tf.keras.layers.LSTM(90, activation='relu'),
             tf.keras.layers.Dense(64, activation='relu'),
-            tf.keras.layers.Dense(9, activation='softmax')
+            tf.keras.layers.Dense(7, activation='softmax')
         ])
         optimizer = tf.keras.optimizers.Adam(learning_rate=0.0001)
         model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
         # Обучение модели при создании
-        self.train_model(model, car_positions)
+        # self.train_model(model, car_positions)
 
         return model
 
@@ -344,11 +344,12 @@ class AICar(pygame.sprite.Sprite):
             y_train.append(action)
 
         x_train = tf.keras.preprocessing.sequence.pad_sequences(x_train, dtype='float32')
-        print(f'x_train:{x_train}')
+        print(f'x_train: {x_train}')
+        print(f'y_train: {y_train}')
         y_train = np.array(y_train)
 
         model.fit(x_train, y_train, epochs=10)
-        print(f'y_train: {y_train}')
+        # print(f'y_train: {y_train}')
         return y_train
 
     def reset_positions(self):
@@ -425,7 +426,7 @@ def run_game(width, height):
                     actions_true = True
                     if actions_true: 
                         car_positions = car.get_positions()
-                        ai_car.model = ai_car.create_model(car_positions) 
+                        ai_car.model = ai_car.create_model() 
                         actions = ai_car.train_model(ai_car.model, car_positions) 
                         print(f'ff') 
                         # actions_true = False 
