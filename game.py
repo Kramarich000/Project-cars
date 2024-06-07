@@ -9,7 +9,9 @@ import os
 import pandas as pd
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, LSTM, Dropout
-from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.optimizers import SGD, Adam
+import logging
+from hyperopt import hp, fmin, tpe, Trials
 
 # Определение цветов
 WHITE = (255, 255, 255)
@@ -181,6 +183,8 @@ class Level:
     #             return checkpoint
     #     return None
 
+
+
 # Класс для спрайта машинки
 class Car(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -198,6 +202,8 @@ class Car(pygame.sprite.Sprite):
         self.min_turn_speed = 1
         self.positions = []
         self.keys_recorded = []
+        self.trail_color = RED  # Цвет следа
+        self.trail = []  # Точки для отрисовки следа 
 
     def update(self, keys):
         pressed_key = None
@@ -237,10 +243,15 @@ class Car(pygame.sprite.Sprite):
 
         if not self.positions or self.positions[-1] != new_position and self.speed != 0:
             self.positions.append(new_position)
+            self.trail.append(new_position)
         
         if pressed_key is not None:
             self.keys_recorded.append(pressed_key)
         return self.keys_recorded
+    
+    def draw_trail(self, screen):
+        if len(self.trail) > 1:
+            pygame.draw.lines(screen, self.trail_color, False, self.trail, 5)
     
     def get_keys_recorded(self):
         # print(f'qwer: {len(self.keys_recorded)}')
@@ -272,17 +283,26 @@ class AICar(pygame.sprite.Sprite):
         self.min_turn_speed = 1
         self.positions = []
         self.model = None  
+        self.final_model = None  
         self.frames_since_last_update = 0  # Счетчик кадров
         self.actions = []  # Массив для хранения предсказанных действий
         self.actions_probabilities = []  # Массив для хранения вероятностей предсказанных действий
         self.current_action_index = 0
+        self.logger = logging.getLogger(__name__)
+        handler = logging.FileHandler('car_model.log', encoding='utf-8')
+        handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        self.logger.addHandler(handler)
+        self.logger.setLevel(logging.INFO)
+        self.trail_color = GREEN  # Цвет следа
+        self.trail = []  # Точки для отрисовки следа 
 
     def create_model(self):
+        # Загрузка данных
         df = pd.read_csv('car_data.csv')
         X = df[['X', 'Y']].values
         y = df['Keys'].values
 
-        sequence_length = 50  # Длина последовательности
+        sequence_length = 50
         X_sequences = []
         y_sequences = []
 
@@ -292,23 +312,52 @@ class AICar(pygame.sprite.Sprite):
 
         X_sequences = np.array(X_sequences)
         y_sequences = np.array(y_sequences)
-
         X_sequences = X_sequences.reshape((X_sequences.shape[0], sequence_length, X.shape[1]))
 
-        model = Sequential([
-            LSTM(128, input_shape=(X_sequences.shape[1], X_sequences.shape[2])),
-            Dropout(0.2),
-            Dense(32, activation='relu'),
+        # Определение пространства поиска гиперпараметров
+        space = {
+            'units': hp.choice('units', [8, 16, 32, 64, 128, 256, 512]),
+            'dropout': hp.uniform('dropout', 0.1, 0.5),
+            'learning_rate': hp.loguniform('learning_rate', np.log(0.0001), np.log(0.01))
+        }
+
+        # Функция, которую нужно минимизировать
+        def objective(params):
+            model = Sequential([
+                LSTM(int(params['units']), input_shape=(X_sequences.shape[1], X_sequences.shape[2]), return_sequences=True),
+                Dropout(params['dropout']),
+                LSTM(int(params['units'])),
+                Dropout(params['dropout']),
+                Dense(64, activation='relu'),
+                Dense(5, activation='softmax')
+            ])
+            optimizer = Adam(learning_rate=params['learning_rate'])
+            model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+            history = model.fit(X_sequences, y_sequences, epochs=10, batch_size=32, validation_split=0.2, verbose=0)
+            return history.history['val_accuracy'][-1]
+        
+        trials = Trials()
+        best = fmin(objective, space, algo=tpe.suggest, max_evals=1, trials=trials)
+        self.logger.info(f'Best hyperparameters: {best}')
+
+        # Преобразование лучших гиперпараметров
+        best_units = [64, 128, 256][best['units']]
+        best_dropout = best['dropout']
+        best_learning_rate = best['learning_rate']
+
+        # Создание и обучение финальной модели с оптимальными гиперпараметрами
+        final_model = Sequential([
+            LSTM(best_units, input_shape=(X_sequences.shape[1], X_sequences.shape[2]), return_sequences=True),
+            Dropout(best_dropout),
+            LSTM(best_units),
+            Dropout(best_dropout),
             Dense(5, activation='softmax')
         ])
-
-        model.compile(optimizer="Adam",
-                      loss='sparse_categorical_crossentropy',
-                      metrics=['accuracy'])
-
-        model.fit(X_sequences, y_sequences, epochs=50, batch_size=32, validation_split=0.2)
-        model.save("car_race.h5")
-        return model
+        optimizer = Adam(learning_rate=best_learning_rate)
+        final_model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+        final_model.fit(X_sequences, y_sequences, epochs=10, batch_size=32, validation_split=0.2)
+        final_model.save("car_race.h5")
+        return final_model
 
     def predict_actions(self, positions):
         sequence_length = 50
@@ -352,12 +401,19 @@ class AICar(pygame.sprite.Sprite):
         dx = math.cos(math.radians(self.angle + 90)) * self.speed
         dy = math.sin(math.radians(-self.angle - 90)) * self.speed
 
+        new_position = (self.rect.centerx, self.rect.centery)
+        self.trail.append(new_position)
+
         new_x = self.rect.x + dx
         new_y = self.rect.y + dy
         if 0 <= new_x <= screen.get_width() - self.rect.width:
             self.rect.x = new_x
         if 0 <= new_y <= screen.get_height() - self.rect.height:
             self.rect.y = new_y
+
+    def draw_trail(self, screen):
+        if len(self.trail) > 1:
+            pygame.draw.lines(screen, self.trail_color, False, self.trail, 5)
 
 
 def run_game(width, height):
@@ -459,6 +515,8 @@ def run_game(width, height):
 
         background.draw(screen)
         all_sprites.draw(screen)
+        car.draw_trail(screen)  # Отрисовка следа для машинки
+        ai_car.draw_trail(screen)  # Отрисовка следа для машинки ИИ
         screen.blit(text, (10, 10))
         off_track_text = font.render(f"Выездов за трассу: {off_track_counter}", True, BLACK)
         screen.blit(off_track_text, (10, 50))
