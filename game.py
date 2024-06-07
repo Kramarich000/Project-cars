@@ -36,8 +36,6 @@ class Level:
         self.lap_count = 0  # Счетчик кругов
         self.visited_checkpoints = 0  # Счетчик посещенных чекпоинтов
 
-
-    #Функция отрисовки финального окна с конечным результатом
     def drawFinalWindow(self, width, height, screen, font, laps, off_track_counter, total_time):
         # Размеры окна и его прозрачность
         window_width, window_height = width, height
@@ -316,7 +314,7 @@ class AICar(pygame.sprite.Sprite):
 
         # Определение пространства поиска гиперпараметров
         space = {
-            'units': hp.choice('units', [8, 16, 32, 64, 128, 256, 512]),
+            'units': hp.choice('units', [64, 128, 256]),
             'dropout': hp.uniform('dropout', 0.1, 0.5),
             'learning_rate': hp.loguniform('learning_rate', np.log(0.0001), np.log(0.01))
         }
@@ -327,8 +325,6 @@ class AICar(pygame.sprite.Sprite):
                 LSTM(int(params['units']), input_shape=(X_sequences.shape[1], X_sequences.shape[2]), return_sequences=True),
                 Dropout(params['dropout']),
                 LSTM(int(params['units'])),
-                Dropout(params['dropout']),
-                Dense(64, activation='relu'),
                 Dense(5, activation='softmax')
             ])
             optimizer = Adam(learning_rate=params['learning_rate'])
@@ -350,7 +346,6 @@ class AICar(pygame.sprite.Sprite):
             LSTM(best_units, input_shape=(X_sequences.shape[1], X_sequences.shape[2]), return_sequences=True),
             Dropout(best_dropout),
             LSTM(best_units),
-            Dropout(best_dropout),
             Dense(5, activation='softmax')
         ])
         optimizer = Adam(learning_rate=best_learning_rate)
