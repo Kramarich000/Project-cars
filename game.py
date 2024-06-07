@@ -8,7 +8,8 @@ import numpy as np
 import os
 import pandas as pd
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, LSTM
+from tensorflow.keras.layers import Dense, LSTM, Dropout
+from tensorflow.keras.optimizers import SGD
 
 # Определение цветов
 WHITE = (255, 255, 255)
@@ -270,65 +271,79 @@ class AICar(pygame.sprite.Sprite):
         self.positions = []
         self.model = None  
         self.frames_since_last_update = 0  # Счетчик кадров
+        self.actions = []  # Массив для хранения предсказанных действий
+        self.actions_probabilities = []  # Массив для хранения вероятностей предсказанных действий
+        self.current_action_index = 0
 
     def create_model(self):
-        # Загрузка данных из файла
-        df = pd.read_csv('car_data_val.csv')  # Предполагая, что файл находится в том же каталоге, что и ваш скрипт
+        df = pd.read_csv('car_data.csv')
+        X = df[['X', 'Y']].values
+        y = df['Keys'].values
 
-        # Подготовка данных для обучения
-        X = df[['X', 'Y']].values  # Признаки (позиции машины)
-        y = df['Keys'].values  # Целевая переменная (записанные клавиши)
+        sequence_length = 50  # Длина последовательности
+        X_sequences = []
+        y_sequences = []
 
-        # Преобразование признаков для подачи на вход LSTM модели
-        X = X.reshape((X.shape[0], 1, X.shape[1]))  # Форма: (количество образцов, количество временных шагов, количество признаков)
-        print(f'X:{X}')
+        for i in range(len(X) - sequence_length):
+            X_sequences.append(X[i:i + sequence_length])
+            y_sequences.append(y[i + sequence_length])
 
-        # Создание модели LSTM
+        X_sequences = np.array(X_sequences)
+        y_sequences = np.array(y_sequences)
+
+        X_sequences = X_sequences.reshape((X_sequences.shape[0], sequence_length, X.shape[1]))
+
         model = Sequential([
-            LSTM(64, input_shape=(X.shape[1], X.shape[2])),
-            Dense(5, activation='softmax')  # Выходной слой с софтмакс активацией, так как у вас 4 возможных клавиши
+            LSTM(128, input_shape=(X_sequences.shape[1], X_sequences.shape[2])),
+            Dropout(0.2),
+            Dense(32, activation='relu'),
+            Dense(5, activation='softmax')
         ])
 
-        # Компиляция модели
-        model.compile(optimizer='adam',
-                    loss='sparse_categorical_crossentropy',
-                    metrics=['accuracy'])
+        model.compile(optimizer="Adam",
+                      loss='sparse_categorical_crossentropy',
+                      metrics=['accuracy'])
 
-        # Обучение модели
-        model.fit(X, y, epochs=10, batch_size=32, validation_split=0.2)
+        model.fit(X_sequences, y_sequences, epochs=50, batch_size=32, validation_split=0.2)
+        model.save("car_race.h5")
         return model
 
+    def predict_actions(self, positions):
+        sequence_length = 50
+        for i in range(len(positions) - sequence_length):
+            X = np.array([positions[i:i + sequence_length]])
+            actions_probabilities = self.model.predict(X)
+            self.actions_probabilities.append(actions_probabilities[0])
+            print(f'actions_probabilities:{actions_probabilities}')
+
     def update(self, screen):
-        current_position = (self.rect.centerx, self.rect.centery)
-        
-        X = np.array([[current_position[0], current_position[1]]])
-        X = X.reshape((X.shape[0], 1, X.shape[1]))
-        actions_probabilities = self.model.predict(X)
+        if self.current_action_index < len(self.actions_probabilities):
+            action_probabilities = self.actions_probabilities[self.current_action_index]
+            predicted_action = np.random.choice(len(action_probabilities), p=action_probabilities)
+            self.current_action_index += 1
+        else:
+            self.speed = 0
+            return
 
-        print(f'X1:{X}')
-
-        predicted_action = np.argmax(actions_probabilities)
-
-        if predicted_action == 0:  # Вперед
+        if predicted_action == 0:
             self.speed += self.forwardAcceleration
             self.speed = min(self.speed, self.maxForwardSpeed)
-        elif predicted_action == 1:  # Назад
+        elif predicted_action == 1:
             self.speed -= self.backAcceleration
             self.speed = max(self.speed, self.maxBackSpeed)
-        elif predicted_action == 2:  # Вперед и влево
+        elif predicted_action == 2:
             self.speed += self.forwardAcceleration
             self.speed = min(self.speed, self.maxForwardSpeed)
             if abs(self.speed) > self.min_turn_speed:
                 self.angle += 5
-        elif predicted_action == 3:  # Вперед и вправо
+        elif predicted_action == 3:
             self.speed += self.forwardAcceleration
             self.speed = min(self.speed, self.maxForwardSpeed)
             if abs(self.speed) > self.min_turn_speed:
                 self.angle -= 5
         else:
             self.speed = 0
-        
-        # Поворот изображения и обновление положения
+
         self.image = pygame.transform.rotate(self.original_image, self.angle)
         self.rect = self.image.get_rect(center=self.rect.center)
 
@@ -342,51 +357,18 @@ class AICar(pygame.sprite.Sprite):
         if 0 <= new_y <= screen.get_height() - self.rect.height:
             self.rect.y = new_y
 
-            
-    # def train_model(self, model, car_positions, keys_recorded):
-    #     x_train = tf.keras.preprocessing.sequence.pad_sequences(car_positions, dtype='float32')
-    #     y_train = np.array(keys_recorded)
-    #     print(f'x_train:{x_train}')
-    #     print(f'y_train:{y_train}')
-    #     max_size = max(len(x_train), len(y_train))
-    #     # Дополнение x_train нулями, если его размер меньше max_size
-    #     if len(x_train) < max_size:
-    #         pad_size = max_size - len(x_train)
-    #         x_train = np.pad(x_train, ((0, pad_size), (0, 0)), mode='constant', constant_values=0)
-
-    #     # Дополнение y_train нулями, если его размер меньше max_size
-    #     if len(y_train) < max_size:
-    #         pad_size = max_size - len(y_train)
-    #         y_train = np.pad(y_train, (0, pad_size), mode='constant', constant_values=0)
-
-    #     # Проверка размеров
-    #     print("Размер x_train:", x_train.shape)
-    #     print("Размер y_train:", y_train.shape)
-
-    #     # Обучение модели
-    #     model.fit(x_train, y_train, epochs=10, batch_size=32, validation_split=0.2)
-
-    #     return y_train
-
-    def reset_positions(self):
-        self.positions = []
-
 
 def run_game(width, height):
     pygame.init()
 
-    # Определение размеров окна
     WINDOW_SIZE = (width, height)
-    screen = pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE)  # Установка режима изменяемого размера окна
+    screen = pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE)
+    clock = pygame.time.Clock()
 
-    clock = pygame.time.Clock()  # Создание объекта Clock для контроля FPS
-
-    # Переменные для машины
     car = Car(width - 200, height // 2)
     ai_car = AICar(width - 200, height // 2)
     all_sprites = pygame.sprite.Group(car, ai_car)
-    
-    # Загрузка трассы
+
     background = Level(width, height)
 
     font = pygame.font.Font(None, 36)
@@ -396,14 +378,13 @@ def run_game(width, height):
     last_off_track = False
     game_start_time = time.time()
     lap_start_time = game_start_time
-    maxLaps = 3  # Кол-во кругов для завершения игры
+    maxLaps = 3
 
-    ai_mode = False  # Режим управления ИИ
+    ai_mode = False
 
     def open_main_menu():
         import main_menu
         main_menu.main_menu(1910, 1070)
-
 
     def draw_button(text, rect):
         pygame.draw.rect(screen, BLACK, rect)
@@ -414,51 +395,38 @@ def run_game(width, height):
     button1 = pygame.Rect(5, 200, 200, 50)
     button2 = pygame.Rect(5, 260, 200, 50)
 
-    # Главный игровой цикл
     running = True
     actions_true = False
-    # actions_HZ = False
-    actions = []
-    # ai_race_started = False  # Флаг для отслеживания начала AI гонки
     while running:
-        screen.fill(BLACK)  # Заполнение экрана черным цветом
+        screen.fill(BLACK)
 
-        # Обработка событий
         for event in pygame.event.get():
             if event.type == QUIT:
                 pygame.quit()
                 sys.exit()
-            elif event.type == VIDEORESIZE:  # Обработка изменения размера окна
+            elif event.type == VIDEORESIZE:
                 width = event.w
                 height = event.h
-                screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)  # Установка новых размеров окна
+                screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)
                 background = Level(width, height)
-            elif event.type == MOUSEBUTTONDOWN:  # Обработка нажатия кнопки мыши
+            elif event.type == MOUSEBUTTONDOWN:
                 mouse_pos = event.pos
                 if button1.collidepoint(mouse_pos):
                     open_main_menu()
                 elif button2.collidepoint(mouse_pos):
-                    ai_mode = True  # Начинаем AI гонку
+                    ai_mode = True
                     actions_true = True
-                    if actions_true: 
-                        # car_positions = car.get_positions()
-                        # keys_recorded = car.get_keys_recorded()
-                        ai_car.model = ai_car.create_model() 
-                        ai_car.update(screen)
-                        # actions = ai_car.create_model(ai_car.model, car.get_positions(), car.get_keys_recorded()) 
-                        print(f'ff') 
-                        # actions_true = False 
-                        # Обучаем модель на позициях машины игрока
-                        # print(f'actions{actions}')
-                    # ai_car.update(actions, screen)  # Обновляем AI машину
+                    if actions_true:
+                        ai_car.model = ai_car.create_model()
+                        ai_car.predict_actions(car.get_positions())
+                        print(f'car.get_positions():{car.get_positions()}')
+                        actions_true = False
 
-        #Проверка на то, достиг ли игрок нужного кол-ва кругов, если да, то вызываем функцию отрисовки финального экрана
         if laps >= maxLaps:
             background.drawFinalWindow(width, height, screen, font, laps, off_track_counter, f"{total_time:.2f} сек")
             pygame.display.update()
-            continue 
+            continue
 
-        # Получение нажатых клавиш
         keys = pygame.key.get_pressed()
 
         if not ai_mode:
@@ -466,15 +434,9 @@ def run_game(width, height):
         else:
             ai_car.update(screen)
 
-        # Обновление машины
-        # car.update(keys)
-        # ai_car.update(car.rect)
-
-        # Ограничение движения машины в пределах экрана
         car.rect.x = max(0, min(width - car.rect.width, car.rect.x))
         car.rect.y = max(0, min(height - car.rect.height, car.rect.y))
 
-        # Проверка чекпоинтов
         checkpoint = background.check_checkpoints(car.rect)
         if checkpoint and checkpoint != last_checkpoint:
             last_checkpoint = checkpoint
@@ -482,7 +444,6 @@ def run_game(width, height):
                 laps += 1
                 lap_start_time = time.time()
 
-        # Проверка, на трассе ли машина
         if background.is_on_track(car.rect):
             if last_off_track:
                 last_off_track = False
@@ -494,21 +455,12 @@ def run_game(width, height):
                 last_off_track = True
             text = font.render(f"Вы съехали с трассы - Круги: {laps} Посещено чекпоинтов: {background.visited_checkpoints}", True, BLACK)
 
-        # Проверка на то, достиг ли игрок нужного кол-ва кругов, если да, то вызываем функцию отрисовки финального экрана
-        # if laps >= maxLaps:
-        #     background.drawFinalWindow(width, height, screen, font, laps, off_track_counter, f"{total_time:.2f} сек")
-        #     pygame.display.update()
-        #     continue 
-
-        
-        # Отображение элементов
         background.draw(screen)
         all_sprites.draw(screen)
         screen.blit(text, (10, 10))
         off_track_text = font.render(f"Выездов за трассу: {off_track_counter}", True, BLACK)
         screen.blit(off_track_text, (10, 50))
 
-        # Отображение таймеров
         total_time = time.time() - game_start_time
         lap_time = time.time() - lap_start_time
         total_time_text = font.render(f"Общее время: {total_time:.2f} сек", True, BLACK)
@@ -522,30 +474,27 @@ def run_game(width, height):
         fps = font.render(f"FPS: {int(clock.get_fps())}", True, BLACK)
         screen.blit(fps, (10, 170))
 
-
         keys_list, positions_list = car.get_keys_recorded(), car.get_positions()
-        # Создание DataFrame
         data = {'X': [], 'Y': [], 'Keys': []}
-        # Заполнение данных в DataFrame
         for i in range(max(len(keys_list), len(positions_list))):
             if i < len(keys_list):
                 data['Keys'].append(keys_list[i])
             else:
-                data['Keys'].append(4)  # Заполнение нулями, если данные отсутствуют
+                data['Keys'].append(4)
 
             if i < len(positions_list):
                 data['X'].append(positions_list[i][0])
                 data['Y'].append(positions_list[i][1])
             else:
-                data['X'].append(4)  # Заполнение нулями, если данные отсутствуют
-                data['Y'].append(4)  # Заполнение нулями, если данные отсутствуют
+                data['X'].append(4)
+                data['Y'].append(4)
 
         df = pd.DataFrame(data)
-
         df.to_csv('car_data.csv', index=False)
 
         pygame.display.update()
-        clock.tick(60)  # Установка FPS на 100
+        clock.tick(60)
+
 
 if __name__ == "__main__":
     run_game(1910, 1070)  # Выбор начальных размеров окна
