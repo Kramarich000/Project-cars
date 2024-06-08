@@ -7,8 +7,8 @@ import tensorflow as tf
 import numpy as np
 import os
 import pandas as pd
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, LSTM, Dropout
+from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.layers import Dense, LSTM, Dropout, LeakyReLU
 from tensorflow.keras.optimizers import SGD, Adam
 import logging
 from hyperopt import hp, fmin, tpe, Trials
@@ -85,10 +85,8 @@ class Level:
         button2_x = (width - button_width) // 2
         button2_y = (height - button_height) // 2 + offset + 60  # Расстояние между кнопками
 
-
         button1 = pygame.Rect(button1_x, button1_y, button_width, button_height)
         button2 = pygame.Rect(button2_x, button2_y, button_width, button_height)
-
 
         # Определение кнопок
 
@@ -182,7 +180,6 @@ class Level:
     #     return None
 
 
-
 # Класс для спрайта машинки
 class Car(pygame.sprite.Sprite):
     def __init__(self, x, y):
@@ -245,6 +242,24 @@ class Car(pygame.sprite.Sprite):
         
         if pressed_key is not None:
             self.keys_recorded.append(pressed_key)
+
+        keys_list, positions_list = self.get_keys_recorded(), self.get_positions()
+        data = {'X': [], 'Y': [], 'Keys': []}
+        for i in range(max(len(keys_list), len(positions_list))):
+            if i < len(keys_list):
+                data['Keys'].append(keys_list[i])
+            else:
+                data['Keys'].append(4)
+
+            if i < len(positions_list):
+                data['X'].append(positions_list[i][0])
+                data['Y'].append(positions_list[i][1])
+            else:
+                data['X'].append(4)
+                data['Y'].append(4)
+
+        df = pd.DataFrame(data)
+        df.to_csv('car_data.csv', index=False)
         return self.keys_recorded
     
     def draw_trail(self, screen):
@@ -300,75 +315,35 @@ class AICar(pygame.sprite.Sprite):
         X = df[['X', 'Y']].values
         y = df['Keys'].values
 
-        sequence_length = 50
-        X_sequences = []
-        y_sequences = []
+        # Преобразование меток действий в категориальные данные
+        y = tf.keras.utils.to_categorical(y, num_classes=5)
 
-        for i in range(len(X) - sequence_length):
-            X_sequences.append(X[i:i + sequence_length])
-            y_sequences.append(y[i + sequence_length])
+        # Создание модели
+        model = Sequential()
+        model.add(Dense(128, input_dim=2))
+        model.add(LeakyReLU(alpha=0.1))  # Добавляем LeakyReLU после первого Dense слоя
 
-        X_sequences = np.array(X_sequences)
-        y_sequences = np.array(y_sequences)
-        X_sequences = X_sequences.reshape((X_sequences.shape[0], sequence_length, X.shape[1]))
+        model.add(Dense(128))
+        model.add(LeakyReLU(alpha=0.1))  # Добавляем LeakyReLU после второго Dense слоя
 
-        # Определение пространства поиска гиперпараметров
-        space = {
-            'units': hp.choice('units', [8, 16, 32, 64, 128, 256, 512]),
-            'dropout': hp.uniform('dropout', 0.1, 0.5),
-            'learning_rate': hp.loguniform('learning_rate', np.log(0.0001), np.log(0.01))
-        }
+        model.add(Dense(5, activation='softmax'))
+        model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-        # Функция, которую нужно минимизировать
-        def objective(params):
-            model = Sequential([
-                LSTM(int(params['units']), input_shape=(X_sequences.shape[1], X_sequences.shape[2]), return_sequences=True),
-                Dropout(params['dropout']),
-                LSTM(int(params['units'])),
-                Dropout(params['dropout']),
-                Dense(64, activation='relu'),
-                Dense(5, activation='softmax')
-            ])
-            optimizer = Adam(learning_rate=params['learning_rate'])
-            model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-            history = model.fit(X_sequences, y_sequences, epochs=10, batch_size=32, validation_split=0.2, verbose=0)
-            return history.history['val_accuracy'][-1]
-        
-        trials = Trials()
-        best = fmin(objective, space, algo=tpe.suggest, max_evals=1, trials=trials)
-        self.logger.info(f'Best hyperparameters: {best}')
-
-        # Преобразование лучших гиперпараметров
-        best_units = [64, 128, 256][best['units']]
-        best_dropout = best['dropout']
-        best_learning_rate = best['learning_rate']
-
-        # Создание и обучение финальной модели с оптимальными гиперпараметрами
-        final_model = Sequential([
-            LSTM(best_units, input_shape=(X_sequences.shape[1], X_sequences.shape[2]), return_sequences=True),
-            Dropout(best_dropout),
-            LSTM(best_units),
-            Dropout(best_dropout),
-            Dense(5, activation='softmax')
-        ])
-        optimizer = Adam(learning_rate=best_learning_rate)
-        final_model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-        final_model.fit(X_sequences, y_sequences, epochs=10, batch_size=32, validation_split=0.2)
-        final_model.save("car_race.h5")
-        return final_model
+        # Обучение модели
+        model.fit(X, y, epochs=10, batch_size=32, validation_split=0.2)
+        model.save("car_race.h5")
+        return model
 
     def predict_actions(self, positions):
-        sequence_length = 50
-        for i in range(len(positions) - sequence_length):
-            X = np.array([positions[i:i + sequence_length]])
-            actions_probabilities = self.model.predict(X)
-            self.actions_probabilities.append(actions_probabilities[0])
-            print(f'actions_probabilities:{actions_probabilities}')
+        # self.model = load_model("car_race.h5")
+        X = np.array(positions)
+        actions_probabilities = self.model.predict(X)
+        self.actions_probabilities = actions_probabilities
 
     def update(self, screen):
         if self.current_action_index < len(self.actions_probabilities):
             action_probabilities = self.actions_probabilities[self.current_action_index]
-            predicted_action = np.random.choice(len(action_probabilities), p=action_probabilities)
+            predicted_action = np.argmax(action_probabilities)
             self.current_action_index += 1
         else:
             self.speed = 0
@@ -404,6 +379,7 @@ class AICar(pygame.sprite.Sprite):
 
         new_x = self.rect.x + dx
         new_y = self.rect.y + dy
+        
         if 0 <= new_x <= screen.get_width() - self.rect.width:
             self.rect.x = new_x
         if 0 <= new_y <= screen.get_height() - self.rect.height:
@@ -412,7 +388,6 @@ class AICar(pygame.sprite.Sprite):
     def draw_trail(self, screen):
         if len(self.trail) > 1:
             pygame.draw.lines(screen, self.trail_color, False, self.trail, 5)
-
 
 def run_game(width, height):
     pygame.init()
@@ -437,6 +412,7 @@ def run_game(width, height):
     maxLaps = 3
 
     ai_mode = False
+    collecting_data = True
 
     def open_main_menu():
         import main_menu
@@ -471,12 +447,14 @@ def run_game(width, height):
                     open_main_menu()
                 elif button2.collidepoint(mouse_pos):
                     ai_mode = True
-                    actions_true = True
-                    if actions_true:
-                        ai_car.model = ai_car.create_model()
-                        ai_car.predict_actions(car.get_positions())
-                        print(f'car.get_positions():{car.get_positions()}')
-                        actions_true = False
+                    # actions_true = True
+                    # if actions_true:
+                        # ai_car.model = ai_car.create_model()
+                        # ai_car.predict_actions(car.get_positions())
+                    ai_car.model = ai_car.create_model()
+                    ai_car.predict_actions(car.get_positions())
+                        
+                        # print(f'car.get_positions():{car.get_positions()}')
 
         if laps >= maxLaps:
             background.drawFinalWindow(width, height, screen, font, laps, off_track_counter, f"{total_time:.2f} сек")
@@ -532,27 +510,9 @@ def run_game(width, height):
         fps = font.render(f"FPS: {int(clock.get_fps())}", True, BLACK)
         screen.blit(fps, (10, 170))
 
-        keys_list, positions_list = car.get_keys_recorded(), car.get_positions()
-        data = {'X': [], 'Y': [], 'Keys': []}
-        for i in range(max(len(keys_list), len(positions_list))):
-            if i < len(keys_list):
-                data['Keys'].append(keys_list[i])
-            else:
-                data['Keys'].append(4)
-
-            if i < len(positions_list):
-                data['X'].append(positions_list[i][0])
-                data['Y'].append(positions_list[i][1])
-            else:
-                data['X'].append(4)
-                data['Y'].append(4)
-
-        df = pd.DataFrame(data)
-        df.to_csv('car_data.csv', index=False)
-
         pygame.display.update()
         clock.tick(60)
 
-
 if __name__ == "__main__":
     run_game(1910, 1070)  # Выбор начальных размеров окна
+

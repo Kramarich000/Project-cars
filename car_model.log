@@ -1,3 +1,0 @@
-2024-06-07 18:00:31,179 - INFO - Best hyperparameters: {'dropout': 0.1424540015655995, 'learning_rate': 0.0007826973208389382, 'units': 6}
-2024-06-07 18:05:08,032 - INFO - Best hyperparameters: {'dropout': 0.1976865608816224, 'learning_rate': 0.0051100754628587465, 'units': 0}
-2024-06-07 18:07:11,707 - INFO - Best hyperparameters: {'dropout': 0.27650107505065735, 'learning_rate': 0.005959006607237276, 'units': 2}
