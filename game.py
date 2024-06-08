@@ -333,6 +333,59 @@ class AICar(pygame.sprite.Sprite):
         model.fit(X, y, epochs=10, batch_size=32, validation_split=0.2)
         model.save("car_race.h5")
         return model
+        sequence_length = 50
+        X_sequences = []
+        y_sequences = []
+
+        for i in range(len(X) - sequence_length):
+            X_sequences.append(X[i:i + sequence_length])
+            y_sequences.append(y[i + sequence_length])
+
+        X_sequences = np.array(X_sequences)
+        y_sequences = np.array(y_sequences)
+        X_sequences = X_sequences.reshape((X_sequences.shape[0], sequence_length, X.shape[1]))
+
+        # Определение пространства поиска гиперпараметров
+        space = {
+            'units': hp.choice('units', [64, 128, 256]),
+            'dropout': hp.uniform('dropout', 0.1, 0.5),
+            'learning_rate': hp.loguniform('learning_rate', np.log(0.0001), np.log(0.01))
+        }
+
+        # Функция, которую нужно минимизировать
+        def objective(params):
+            model = Sequential([
+                LSTM(int(params['units']), input_shape=(X_sequences.shape[1], X_sequences.shape[2]), return_sequences=True),
+                Dropout(params['dropout']),
+                LSTM(int(params['units'])),
+                Dense(5, activation='softmax')
+            ])
+            optimizer = Adam(learning_rate=params['learning_rate'])
+            model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+            history = model.fit(X_sequences, y_sequences, epochs=10, batch_size=32, validation_split=0.2, verbose=0)
+            return history.history['val_accuracy'][-1]
+        
+        trials = Trials()
+        best = fmin(objective, space, algo=tpe.suggest, max_evals=1, trials=trials)
+        self.logger.info(f'Best hyperparameters: {best}')
+
+        # Преобразование лучших гиперпараметров
+        best_units = [64, 128, 256][best['units']]
+        best_dropout = best['dropout']
+        best_learning_rate = best['learning_rate']
+
+        # Создание и обучение финальной модели с оптимальными гиперпараметрами
+        final_model = Sequential([
+            LSTM(best_units, input_shape=(X_sequences.shape[1], X_sequences.shape[2]), return_sequences=True),
+            Dropout(best_dropout),
+            LSTM(best_units),
+            Dense(5, activation='softmax')
+        ])
+        optimizer = Adam(learning_rate=best_learning_rate)
+        final_model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+        final_model.fit(X_sequences, y_sequences, epochs=10, batch_size=32, validation_split=0.2)
+        final_model.save("car_race.h5")
+        return final_model
 
     def predict_actions(self, positions):
         # self.model = load_model("car_race.h5")
@@ -346,7 +399,10 @@ class AICar(pygame.sprite.Sprite):
             predicted_action = np.argmax(action_probabilities)
             self.current_action_index += 1
         else:
-            self.speed = 0
+            if self.speed > 0:
+                self.speed -= 4 * self.backAcceleration
+            elif self.speed < 0:
+                self.speed += 2 * self.forwardAcceleration
             return
 
         if predicted_action == 0:
@@ -365,9 +421,11 @@ class AICar(pygame.sprite.Sprite):
             self.speed = min(self.speed, self.maxForwardSpeed)
             if abs(self.speed) > self.min_turn_speed:
                 self.angle -= 5
-        else:
-            self.speed = 0
-
+        elif predicted_action == 4:
+            if self.speed > 0:
+                self.speed -= 4 * self.backAcceleration
+            elif self.speed < 0:
+                self.speed += 2 * self.forwardAcceleration
         self.image = pygame.transform.rotate(self.original_image, self.angle)
         self.rect = self.image.get_rect(center=self.rect.center)
 
