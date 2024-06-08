@@ -368,7 +368,10 @@ class AICar(pygame.sprite.Sprite):
             predicted_action = np.random.choice(len(action_probabilities), p=action_probabilities)
             self.current_action_index += 1
         else:
-            self.speed = 0
+            if self.speed > 0:
+                self.speed -= 4 * self.backAcceleration
+            elif self.speed < 0:
+                self.speed += 2 * self.forwardAcceleration
             return
 
         if predicted_action == 0:
@@ -387,9 +390,11 @@ class AICar(pygame.sprite.Sprite):
             self.speed = min(self.speed, self.maxForwardSpeed)
             if abs(self.speed) > self.min_turn_speed:
                 self.angle -= 5
-        else:
-            self.speed = 0
-
+        elif predicted_action == 4:
+            if self.speed > 0:
+                self.speed -= 4 * self.backAcceleration
+            elif self.speed < 0:
+                self.speed += 2 * self.forwardAcceleration
         self.image = pygame.transform.rotate(self.original_image, self.angle)
         self.rect = self.image.get_rect(center=self.rect.center)
 
