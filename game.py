@@ -8,8 +8,10 @@ import numpy as np
 import os
 import pandas as pd
 from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import Dense, LSTM, Dropout, LeakyReLU
-from tensorflow.keras.optimizers import SGD, Adam
+from tensorflow.keras.layers import Dense, LSTM, Dropout, LeakyReLU, Activation
+from tensorflow.keras.optimizers import SGD, Adam, RMSprop
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 import logging
 from hyperopt import hp, fmin, tpe, Trials
 
@@ -66,8 +68,8 @@ class Level:
             import main_menu
             main_menu.main_menu(1910, 1070)
 
-        def start_ai_race():
-            print("AI race started")
+        def start_ai_race(self):
+            self.ai_mode = True
 
         def draw_button(text, rect):
             pygame.draw.rect(screen, WHITE, rect)
@@ -170,8 +172,6 @@ class Level:
         y = car_rect.centery
         return self.track_mask.get_at((x, y))
     
-    def start_ai_race(self):
-        self.ai_mode = True
 
     # def check_checkpoints(self, car_rect):
     #     for checkpoint in self.checkpoints:
@@ -196,6 +196,8 @@ class Car(pygame.sprite.Sprite):
         self.backAcceleration = 0.1
         self.min_turn_speed = 1
         self.positions = []
+        self.angle_ = []
+        self.speed_ = []
         self.keys_recorded = []
         self.trail_color = RED  # Цвет следа
         self.trail = []  # Точки для отрисовки следа 
@@ -238,40 +240,30 @@ class Car(pygame.sprite.Sprite):
 
         if not self.positions or self.positions[-1] != new_position and self.speed != 0:
             self.positions.append(new_position)
+            self.angle_.append(self.angle)
+            self.speed_.append(self.speed)
             self.trail.append(new_position)
         
         if pressed_key is not None:
             self.keys_recorded.append(pressed_key)
-
-        keys_list, positions_list = self.get_keys_recorded(), self.get_positions()
-        data = {'X': [], 'Y': [], 'Keys': []}
-        for i in range(max(len(keys_list), len(positions_list))):
-            if i < len(keys_list):
-                data['Keys'].append(keys_list[i])
-            else:
-                data['Keys'].append(4)
-
-            if i < len(positions_list):
-                data['X'].append(positions_list[i][0])
-                data['Y'].append(positions_list[i][1])
-            else:
-                data['X'].append(4)
-                data['Y'].append(4)
-
-        df = pd.DataFrame(data)
-        df.to_csv('car_data.csv', index=False)
-        return self.keys_recorded
     
     def draw_trail(self, screen):
         if len(self.trail) > 1:
             pygame.draw.lines(screen, self.trail_color, False, self.trail, 5)
     
     def get_keys_recorded(self):
-        # print(f'qwer: {len(self.keys_recorded)}')
+        print(f'self.keys_recorded:{self.keys_recorded}')
         return self.keys_recorded
     
+    def get_angle_recorded(self):
+        print(f'angle_:{self.angle_}')
+        return self.angle_
+    
+    def get_speed_recorded(self):
+        print(f'speed_:{self.speed_}')
+        return self.speed_
+    
     def get_positions(self):
-        # print(f'qwert: {len(self.positions)}')
         return self.positions
 
     def reset_keys_recorded(self):
@@ -308,95 +300,69 @@ class AICar(pygame.sprite.Sprite):
         self.logger.setLevel(logging.INFO)
         self.trail_color = GREEN  # Цвет следа
         self.trail = []  # Точки для отрисовки следа 
+        self.X_normalized = []
+        
 
+    
     def create_model(self):
         # Загрузка данных
         df = pd.read_csv('car_data.csv')
-        X = df[['X', 'Y']].values
+        X = df[['X', 'Y', 'Angle', 'Speed']].values
         y = df['Keys'].values
 
-        # Преобразование меток действий в категориальные данные
-        y = tf.keras.utils.to_categorical(y, num_classes=5)
+        # Нормализация данных
+        scaler = StandardScaler()
+        self.X_normalized = scaler.fit_transform(X)
 
+        # Разделение данных на обучающие и проверочные
+        X_train, X_val, y_train, y_val = train_test_split(self.X_normalized, y, test_size=0.2, random_state=42)
+
+        
         # Создание модели
         model = Sequential()
-        model.add(Dense(128, input_dim=2))
-        model.add(LeakyReLU(alpha=0.1))  # Добавляем LeakyReLU после первого Dense слоя
+        model.add(Dense(128, input_dim=4))  # Используем все четыре признака
+        model.add(Activation('relu'))  # Заменяем LeakyReLU на ReLU
+        # model.add(Dropout(0.5))
 
         model.add(Dense(128))
-        model.add(LeakyReLU(alpha=0.1))  # Добавляем LeakyReLU после второго Dense слоя
+        model.add(Activation('relu'))  # Заменяем LeakyReLU на ReLU
+        # model.add(Dropout(0.5))
 
         model.add(Dense(5, activation='softmax'))
-        model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+        model.compile(optimizer=Adam(learning_rate=0.001), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
         # Обучение модели
-        model.fit(X, y, epochs=10, batch_size=32, validation_split=0.2)
+        early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=10, restore_best_weights=True)
+        model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_val, y_val), callbacks=[early_stopping])
         model.save("car_race.h5")
+
         return model
-        sequence_length = 50
-        X_sequences = []
-        y_sequences = []
+    
+    def predict_actions(self, positions, angles, speeds):
+        # # Ensure all inputs have the same length
+        # if len(positions) != len(angles) or len(angles) != len(speeds):
+        #     raise ValueError("Length of positions, angles, and speeds must be the same.")
 
-        for i in range(len(X) - sequence_length):
-            X_sequences.append(X[i:i + sequence_length])
-            y_sequences.append(y[i + sequence_length])
+        # # Combine positions, angles, and speeds into a single array
+        # X = np.array([(pos[0], pos[1], angle, speed) for pos, angle, speed in zip(positions, angles, speeds)])
+        # print(f'X shape: {X.shape}')  # Debug: Print the shape of X
 
-        X_sequences = np.array(X_sequences)
-        y_sequences = np.array(y_sequences)
-        X_sequences = X_sequences.reshape((X_sequences.shape[0], sequence_length, X.shape[1]))
+        # if X.shape[1] != 4:
+        #     raise ValueError("Input shape is incorrect. Expected 4 columns (X, Y, angle, speed).")
+        # scaler = StandardScaler()
+        # # Normalize input data
+        # X_normalized = scaler.fit_transform(X)
 
-        # Определение пространства поиска гиперпараметров
-        space = {
-            'units': hp.choice('units', [64, 128, 256]),
-            'dropout': hp.uniform('dropout', 0.1, 0.5),
-            'learning_rate': hp.loguniform('learning_rate', np.log(0.0001), np.log(0.01))
-        }
-
-        # Функция, которую нужно минимизировать
-        def objective(params):
-            model = Sequential([
-                LSTM(int(params['units']), input_shape=(X_sequences.shape[1], X_sequences.shape[2]), return_sequences=True),
-                Dropout(params['dropout']),
-                LSTM(int(params['units'])),
-                Dense(5, activation='softmax')
-            ])
-            optimizer = Adam(learning_rate=params['learning_rate'])
-            model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-            history = model.fit(X_sequences, y_sequences, epochs=10, batch_size=32, validation_split=0.2, verbose=0)
-            return history.history['val_accuracy'][-1]
-        
-        trials = Trials()
-        best = fmin(objective, space, algo=tpe.suggest, max_evals=1, trials=trials)
-        self.logger.info(f'Best hyperparameters: {best}')
-
-        # Преобразование лучших гиперпараметров
-        best_units = [64, 128, 256][best['units']]
-        best_dropout = best['dropout']
-        best_learning_rate = best['learning_rate']
-
-        # Создание и обучение финальной модели с оптимальными гиперпараметрами
-        final_model = Sequential([
-            LSTM(best_units, input_shape=(X_sequences.shape[1], X_sequences.shape[2]), return_sequences=True),
-            Dropout(best_dropout),
-            LSTM(best_units),
-            Dense(5, activation='softmax')
-        ])
-        optimizer = Adam(learning_rate=best_learning_rate)
-        final_model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-        final_model.fit(X_sequences, y_sequences, epochs=10, batch_size=32, validation_split=0.2)
-        final_model.save("car_race.h5")
-        return final_model
-
-    def predict_actions(self, positions):
-        # self.model = load_model("car_race.h5")
-        X = np.array(positions)
-        actions_probabilities = self.model.predict(X)
+        actions_probabilities = self.model.predict(self.X_normalized)
         self.actions_probabilities = actions_probabilities
+        print(f'actions_probabilities: {actions_probabilities}')
+
 
     def update(self, screen):
         if self.current_action_index < len(self.actions_probabilities):
             action_probabilities = self.actions_probabilities[self.current_action_index]
             predicted_action = np.argmax(action_probabilities)
+
             self.current_action_index += 1
         else:
             if self.speed > 0:
@@ -467,7 +433,7 @@ def run_game(width, height):
     last_off_track = False
     game_start_time = time.time()
     lap_start_time = game_start_time
-    maxLaps = 3
+    maxLaps = 300
 
     ai_mode = False
     collecting_data = True
@@ -505,12 +471,49 @@ def run_game(width, height):
                     open_main_menu()
                 elif button2.collidepoint(mouse_pos):
                     ai_mode = True
+                    keys_list = car.get_keys_recorded()
+                    positions_list = car.get_positions()
+                    angles_list = car.get_angle_recorded()
+                    speeds_list = car.get_speed_recorded()
+                    print(f'keys_list:{keys_list}')
+                    print(f'positions_list:{positions_list}')
+                    print(f'angles_list:{angles_list}')
+                    print(f'speeds_list:{speeds_list}')
+                    data = {'X': [], 'Y': [], 'Angle': [], 'Speed': [], 'Keys': []}
+
+                    max_length = max(len(keys_list), len(positions_list), len(angles_list), len(speeds_list))
+
+                    for i in range(max_length):
+
+                        if i < len(positions_list):
+                            data['X'].append(positions_list[i][0])
+                            data['Y'].append(positions_list[i][1])
+                        else:
+                            data['X'].append(0)  # Или другое значение по умолчанию
+                            data['Y'].append(0)  # Или другое значение по умолчанию
+
+                        if i < len(angles_list):
+                            data['Angle'].append(angles_list[i])
+                        else:
+                            data['Angle'].append(0)  # Или другое значение по умолчанию
+
+                        if i < len(speeds_list):
+                            data['Speed'].append(speeds_list[i])
+                        else:
+                            data['Speed'].append(0)  # Или другое значение по умолчанию
+                        if i < len(keys_list):
+                            data['Keys'].append(keys_list[i])
+                        else:
+                            data['Keys'].append(4)  # Предположим, что 4 означает "нет действия"
+
+                    df = pd.DataFrame(data)
+                    df.to_csv('car_data.csv', index=False)
                     # actions_true = True
                     # if actions_true:
                         # ai_car.model = ai_car.create_model()
                         # ai_car.predict_actions(car.get_positions())
                     ai_car.model = ai_car.create_model()
-                    ai_car.predict_actions(car.get_positions())
+                    ai_car.predict_actions(positions_list, angles_list, speeds_list)
                         
                         # print(f'car.get_positions():{car.get_positions()}')
 
@@ -566,11 +569,10 @@ def run_game(width, height):
         draw_button("Проезд ИИ", button2)
 
         fps = font.render(f"FPS: {int(clock.get_fps())}", True, BLACK)
-        screen.blit(fps, (10, 170))
-
+        screen.blit(fps, (10, 170))     
+        
         pygame.display.update()
         clock.tick(60)
 
 if __name__ == "__main__":
     run_game(1910, 1070)  # Выбор начальных размеров окна
-
