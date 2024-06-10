@@ -8,11 +8,14 @@ os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 import tensorflow as tf
 import numpy as np
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import Dense, LSTM, Dropout, LeakyReLU, Activation, GRU, Attention, Conv1D, BatchNormalization, MaxPooling1D, Flatten
 from tensorflow.keras.optimizers import SGD, Adam, RMSprop
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, MaxAbsScaler
+from tensorflow.keras.regularizers import l2
+from sklearn.model_selection import train_test_split, KFold
+from sklearn.preprocessing import StandardScaler, MaxAbsScaler,RobustScaler,MaxAbsScaler,Normalizer, MinMaxScaler ,PowerTransformer, QuantileTransformer, KernelCenterer, PolynomialFeatures
 import logging
 from hyperopt import hp, fmin, tpe, Trials
 
@@ -228,6 +231,8 @@ class Car(pygame.sprite.Sprite):
             elif keys[pygame.K_RIGHT]:
                 self.angle -= 5
                 pressed_key = 3  # RIGHT
+        if pressed_key is not None:
+            print(f'pressed_key:{pressed_key}')
 
         self.image = pygame.transform.rotate(self.original_image, self.angle)
         self.rect = self.image.get_rect(center=self.rect.center)
@@ -273,6 +278,7 @@ class Car(pygame.sprite.Sprite):
     def reset_positions(self):
         self.positions = []
 
+
 class AICar(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
@@ -286,12 +292,10 @@ class AICar(pygame.sprite.Sprite):
         self.maxBackSpeed = -6
         self.forwardAcceleration = 0.15
         self.backAcceleration = 0.1
-        self.min_turn_speed = 1
+        self.min_turn_speed = 0
         self.positions = []
-        self.model = None  
         self.final_model = None  
         self.frames_since_last_update = 0  # Счетчик кадров
-        self.actions = []  # Массив для хранения предсказанных действий
         self.actions_probabilities = []  # Массив для хранения вероятностей предсказанных действий
         self.current_action_index = 0
         self.logger = logging.getLogger(__name__)
@@ -302,193 +306,190 @@ class AICar(pygame.sprite.Sprite):
         self.trail_color = GREEN  # Цвет следа
         self.trail = []  # Точки для отрисовки следа 
         self.X_normalized = []
-        self.X_seq = []
-    
-    def create_model(self):
-        # def prepare_sequences(X, y, time_steps):
-        #     y_seq = []
-        #     for i in range(len(X) - time_steps):
-        #         self.X_seq.append(X[i:i+time_steps])
-        #         y_seq.append(y[i+time_steps])
-        #     return np.array(self.X_seq), np.array(y_seq)
-        
+        self.model = None
+        self.X_poly = None
+        self.history = None
+
+#####################################################################################################################################################################################################################################################v    
+    def create_model(self): # !!! - имба не трогать!!!
         # Load data
         df = pd.read_csv('car_data.csv')
-        X = df[['Time','X', 'Y', 'Angle', 'Speed']].values
-        y = df['Keys'].values
+        X = df[['Time', 'X', 'Y', 'Keys']].values
+        y = df[['Speed', 'Angle']].values
 
         # Data normalization
-        scaler = StandardScaler()
-        self.X_normalized = scaler.fit_transform(X)
+        scaler = StandardScaler() # RobustScaler MaxAbsScaler
+        X_normalized = scaler.fit_transform(X)
 
-        # # Parameters for preparing data sequences
-        # time_steps = 10  # Number of time steps in each sequence
+        # Polynomial features
+        poly = PolynomialFeatures(degree=10) 
+        self.X_poly = poly.fit_transform(X_normalized)
 
-        # # Prepare sequences
-        # self.X_seq, y_seq = prepare_sequences(self.X_normalized, y, time_steps)
+        # Split the data into training and validation sets
+        X_train, y_train = self.X_poly, y
 
-        # # Split sequences into training and validation
-        # X_train_seq, X_val_seq, y_train_seq, y_val_seq = train_test_split(self.X_seq, y_seq, test_size=0.2, random_state=42)
-        # X_train_seq = X_train_seq.reshape((X_train_seq.shape[0], time_steps * X_train_seq.shape[2]))
-        # X_val_seq = X_val_seq.reshape((X_val_seq.shape[0], time_steps * X_val_seq.shape[2]))
-        # Преобразование меток действий в категориальные данные
-        y = tf.keras.utils.to_categorical(y, num_classes=5)
-
-        # Разделение данных на обучающие и проверочные
-        X_train, X_val, y_train, y_val = train_test_split(self.X_normalized, y, test_size=0.2, random_state=42)
-
-        # Создание модели
+        # Create the model
         model = Sequential()
-        model.add(BatchNormalization(input_shape=(5, 1)))
-        model.add(Conv1D(filters=64, kernel_size=3, activation='relu', padding='same'))
-        model.add(MaxPooling1D(pool_size=3))
-        model.add(Flatten())
-        model.add(Dense(128, input_dim=5))  # Используем все четыре признака
-        model.add(Activation('relu'))  # Use LeakyReLU activation
-        model.add(Dropout(0.5))
-        # model.add(Dense(256))
-        # model.add(Activation('relu'))
-        # model.add(Dropout(0.5))
-        # model.add(Dense(256))
-        # model.add(Activation('relu'))
-        # model.add(Dropout(0.5))
+        model.add(Dense(512, input_dim=self.X_poly.shape[1], activation='relu'))
+        # model.add(Dropout(0.3))
+        model.add(Dense(256, activation='relu'))
+        # model.add(Dropout(0.3))
+        model.add(Dense(128, activation='relu'))
+        # model.add(Dropout(0.3))
+        model.add(Dense(64, activation='relu'))
+        # model.add(Dropout(0.3))
+        # model.add(Dense(32, activation='relu'))
+        # # model.add(Dropout(0.3))
+        # model.add(Dense(16, activation='relu'))
+        # model.add(Dropout(0.3))
+        model.add(Dense(2, activation='linear'))  # Output layer for speed and angle
+        model.compile(optimizer=Adam(learning_rate=0.0001), loss='mean_squared_error', metrics=['mae'])
 
-        model.add(Dense(5, activation='softmax'))
-        model.compile(optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy', metrics=['accuracy'])
-
-        # Определение обратного вызова EarlyStopping
-        early_stopping_accuracy = tf.keras.callbacks.EarlyStopping(
-            monitor='val_accuracy',  # Мониторим функцию потерь на валидационном наборе данных
-            patience=50,         # Терпимость - число эпох без улучшений, прежде чем остановить обучение
-            min_delta=0.00001,     # Минимальное изменение, которое считается улучшением
-            mode='auto',         # Автоматическое определение того, что считать улучшением
-            baseline=None,       # Значение мониторируемой метрики, ниже которого считается улучшением
-            restore_best_weights=True,  # Восстановить веса модели до лучших при остановке
-            verbose=2            # Вывод информации о прогрессе обучения (0 - нет, 1 - минимальный, 2 - максимальный)
-        )
-        early_stopping_loss = tf.keras.callbacks.EarlyStopping(
-            monitor='val_loss',  # Мониторим функцию потерь на валидационном наборе данных
-            patience=50,         # Терпимость - число эпох без улучшений, прежде чем остановить обучение
-            min_delta=0.00001,     # Минимальное изменение, которое считается улучшением
-            mode='auto',         # Автоматическое определение того, что считать улучшением
-            baseline=None,       # Значение мониторируемой метрики, ниже которого считается улучшением
-            restore_best_weights=True,  # Восстановить веса модели до лучших при остановке
-            verbose=2            # Вывод информации о прогрессе обучения (0 - нет, 1 - минимальный, 2 - максимальный)
+        # Define callbacks for early stopping
+        early_stopping = tf.keras.callbacks.EarlyStopping(
+            monitor='loss', patience=500, restore_best_weights=True, verbose=2
         )
 
-        model.fit(X_train, y_train, epochs=500, batch_size=32, validation_data=(X_val, y_val), callbacks=[early_stopping_loss, early_stopping_accuracy])
+        # Train the model
+        history = model.fit(X_train, y_train, epochs=500, batch_size=32, callbacks=[early_stopping])
+
+        self.model = model
+        self.history = history.history  # Save the history for plotting
+
+        # Plot training & validation loss values
+        # Plot training & validation loss values
+        plt.figure(figsize=(18, 8))
+
+        # Plot loss
+        plt.subplot(1, 2, 1)
+        plt.plot(self.history['loss'], label='Train Loss')
+        plt.title('Model Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.legend()
+
+        # Plot MAE
+        plt.subplot(1, 2, 2)
+        plt.plot(self.history['mae'], label='Train MAE')
+        plt.title('Mean Absolute Error')
+        plt.xlabel('Epoch')
+        plt.ylabel('MAE')
+        plt.legend()
+
+        plt.tight_layout()
+        plt.show()
+
+        # Save the model
         model.save("car_race.h5")
+
+        # Save the architecture of the model
+        model_json = model.to_json()
+        with open("model_architecture.json", "w") as json_file:
+            json_file.write(model_json)
+        
+        # Correlation matrix of the input features
+        plt.figure(figsize=(10, 8))
+        corr = df[['Time', 'X', 'Y', 'Keys']].corr()
+        sns.heatmap(corr, annot=True, cmap='hot', vmin=-1, vmax=1)
+        plt.title('Correlation Matrix of Input Features')
+        plt.show()
+
+        # Summarize model
+        model.summary()
+
         return model
-
-    # def create_model(self):
-    #     # Load data
-    #     df = pd.read_csv('car_data.csv')
-    #     X = df[['Time', 'X', 'Y', 'Angle', 'Speed']].values
-    #     y = df['Keys'].values
-
-    #     # Data normalization
-    #     scaler = StandardScaler()
-    #     self.X_normalized = scaler.fit_transform(X)
-
-    #     # Parameters for preparing data sequences
-    #     time_steps = 10  # Number of time steps in each sequence
-
-    #     # Prepare sequences
-    #     def prepare_sequences(X, y, time_steps):
-    #         X_seq, y_seq = [], []
-    #         for i in range(len(X) - time_steps):
-    #             X_seq.append(X[i:i + time_steps])
-    #             y_seq.append(y[i + time_steps])
-    #         return np.array(X_seq), np.array(y_seq)
-
-    #     self.X_seq, y_seq = prepare_sequences(self.X_normalized, y, time_steps)
-
-    #     # Преобразование меток действий в категориальные данные
-    #     y_seq = tf.keras.utils.to_categorical(y_seq, num_classes=5)
-
-    #     # Разделение данных на обучающие и проверочные
-    #     X_train, X_val, y_train, y_val = train_test_split(self.X_seq, y_seq, test_size=0.2, random_state=42)
-
-    #     # Создание модели
-    #     model = Sequential()
-    #     model.add(LSTM(128, input_shape=(time_steps, X.shape[1]), return_sequences=True))
-    #     model.add(LSTM(128))
-    #     model.add(Dense(256, activation='relu'))
-    #     model.add(Dropout(0.5))
-    #     model.add(Dense(5, activation='softmax'))
-    #     model.compile(optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy', metrics=['accuracy'])
-
-    #     # # Определение обратного вызова EarlyStopping
-    #     early_stopping_accuracy = tf.keras.callbacks.EarlyStopping(
-    #         monitor='val_accuracy',
-    #         patience=10,
-    #         restore_best_weights=True,
-    #     )
-    #     early_stopping_loss = tf.keras.callbacks.EarlyStopping(
-    #         monitor='val_loss',
-    #         patience=10,
-    #         restore_best_weights=True,
-    #     )
-
-    #     model.fit(X_train, y_train, epochs=500, batch_size=32, validation_data=(X_val, y_val), callbacks=[early_stopping_accuracy, early_stopping_loss])
-    #     model.save("car_race.h5")
-    #     return model
-
-
     
-    def predict_actions(self, positions, angles, speeds):
-        # # Ensure all inputs have the same length
-        # if len(positions) != len(angles) or len(angles) != len(speeds):
-        #     raise ValueError("Length of positions, angles, and speeds must be the same.")
+###################################################################################################################################################################################################################################################################v
+    # def create_model(self):    - кал(ну пусть останется пока что интересная модель тут) 
+        # Load data
+        # df = pd.read_csv('car_data_1.csv')
+        # X = df[['Time', 'X', 'Y', 'Keys']].values
+        # y = df[['Speed', 'Angle']].values
 
-        # # Combine positions, angles, and speeds into a single array
-        # X = np.array([(pos[0], pos[1], angle, speed) for pos, angle, speed in zip(positions, angles, speeds)])
-        # print(f'X shape: {X.shape}')  # Debug: Print the shape of X
-
-        # if X.shape[1] != 4:
-        #     raise ValueError("Input shape is incorrect. Expected 4 columns (X, Y, angle, speed).")
+        # # Data normalization
         # scaler = StandardScaler()
-        # # Normalize input data
         # X_normalized = scaler.fit_transform(X)
 
-        actions_probabilities = self.model.predict(self.X_normalized)
+        # # Polynomial features
+        # poly = PolynomialFeatures(degree=2)
+        # self.X_poly = poly.fit_transform(X_normalized)
 
-        self.actions_probabilities = actions_probabilities
-        print(f'actions_probabilities: {actions_probabilities}')
-    # def predict_actions(self, positions, angles, speeds):
-    #     time_steps = 1  # Ensure this matches the value used in `create_model`
+        # # Split the data into training and validation sets
+        # X_train, X_val, y_train, y_val = train_test_split(self.X_poly, y, test_size=0.2, random_state=42)
 
-    #     # Ensure all inputs have the same length
-    #     # if len(positions) != len(angles) or len(angles) != len(speeds):
-    #     #     raise ValueError("Length of positions, angles, and speeds must be the same.")
+        # # Create the model
+        # model = Sequential()
+        # model.add(Dense(512, input_dim=self.X_poly.shape[1], activation='relu', kernel_regularizer=l2(0.01)))
+        # model.add(Dropout(0.4))
+        # model.add(Dense(256, activation='relu', kernel_regularizer=l2(0.01)))
+        # model.add(Dropout(0.4))
+        # model.add(Dense(128, activation='relu', kernel_regularizer=l2(0.01)))
+        # model.add(Dropout(0.4))
+        # model.add(Dense(64, activation='relu', kernel_regularizer=l2(0.01)))
+        # model.add(Dropout(0.4))
+        # model.add(Dense(2, activation='linear'))  # Output layer for speed and angle
 
-    #     # # Combine positions, angles, and speeds into a single array
-    #     # X = np.array([[pos[0], pos[1], angle, speed] for pos, angle, speed in zip(positions, angles, speeds)])
+        # model.compile(optimizer=Adam(learning_rate=0.0001), loss='mean_squared_error', metrics=['mae'])
 
-    #     # Normalize input data
-    #     # scaler = StandardScaler()
-    #     # X_normalized = scaler.fit_transform(X)
+        # # Define callbacks for early stopping
+        # early_stopping = tf.keras.callbacks.EarlyStopping(
+        #     monitor='val_loss', patience=500, restore_best_weights=True, verbose=2
+        # )
 
-    #     # Prepare sequences for prediction
-    #     def prepare_sequences(X, time_steps):
-    #         X_seq = []
-    #         for i in range(len(X) - time_steps + 1):
-    #             X_seq.append(X[i:i + time_steps])
-    #         return np.array(X_seq)
+        # # Train the model
+        # history = model.fit(X_train, y_train, epochs=500, batch_size=32,
+        #                     validation_data=(X_val, y_val), callbacks=[early_stopping])
 
-    #     X_seq = prepare_sequences(self.X_normalized, time_steps)
+        # self.model = model
+        # self.history = history.history  # Save the history for plotting
 
-    #     # Predict actions
-    #     actions_probabilities = self.model.predict(X_seq)
-    #     self.actions_probabilities = actions_probabilities
-    #     print(f'actions_probabilities: {actions_probabilities}')
+        # Plot training & validation loss values
+        # plt.figure(figsize=(12, 6))
 
+        # Plot loss
+        # plt.subplot(1, 2, 1)
+        # for hist in self.history:
+        #     plt.plot(hist['loss'], label='Train')
+        #     plt.plot(hist['val_loss'], label='Validation')
+        # plt.title('Model loss')
+        # plt.xlabel('Epoch')
+        # plt.ylabel('Loss')
+        # plt.legend()
 
+        # # Plot MAE
+        # plt.subplot(1, 2, 2)
+        # for hist in self.history:
+        #     plt.plot(hist['mae'], label='Train')
+        #     plt.plot(hist['val_mae'], label='Validation')
+        # plt.title('Mean Absolute Error')
+        # plt.xlabel('Epoch')
+        # plt.ylabel('MAE')
+        # plt.legend()
+
+        # plt.tight_layout()
+        # plt.show()
+
+        # Save the model
+        model.save("car_race.h5")
+
+        return model
+    # 
+    # 
+    
+    
+    def predict_actions(self, positions, keys, f):
+        self.actions_probabilities = self.model.predict(self.X_poly)
+        print(f'actions_probabilities: {self.actions_probabilities}')
+    
     def update(self, screen):
-        # тут есть трабл что накапливается ошибка если машинка допустим неверно проехала поворот вот надо чета тут добавить чтобы она старалась вернуться на траектории
         if self.current_action_index < len(self.actions_probabilities):
-            action_probabilities = self.actions_probabilities[self.current_action_index]
-            predicted_action = np.argmax(action_probabilities)
+            predicted_action = self.actions_probabilities[self.current_action_index]
+            predicted_speed = predicted_action[0]
+            predicted_angle = predicted_action[1]
+            
+            self.speed = predicted_speed
+            self.angle = predicted_angle
+            
             self.current_action_index += 1
         else:
             if self.speed > 0:
@@ -496,28 +497,7 @@ class AICar(pygame.sprite.Sprite):
             elif self.speed < 0:
                 self.speed += 2 * self.forwardAcceleration
             return
-        print(f'predicted_action:{predicted_action}')
-        if predicted_action == 0:
-            self.speed += self.forwardAcceleration
-            self.speed = min(self.speed, self.maxForwardSpeed)
-        elif predicted_action == 1:
-            self.speed -= self.backAcceleration
-            self.speed = max(self.speed, self.maxBackSpeed)
-        elif predicted_action == 2:
-            self.speed += self.forwardAcceleration
-            self.speed = min(self.speed, self.maxForwardSpeed)
-            if abs(self.speed) > self.min_turn_speed:
-                self.angle += 5
-        elif predicted_action == 3:
-            self.speed += self.forwardAcceleration
-            self.speed = min(self.speed, self.maxForwardSpeed)
-            if abs(self.speed) > self.min_turn_speed:
-                self.angle -= 5
-        elif predicted_action == 4:
-            if self.speed > 0:
-                self.speed -= 4 * self.backAcceleration
-            elif self.speed < 0:
-                self.speed += 2 * self.forwardAcceleration
+        
         self.image = pygame.transform.rotate(self.original_image, self.angle)
         self.rect = self.image.get_rect(center=self.rect.center)
 
@@ -534,8 +514,7 @@ class AICar(pygame.sprite.Sprite):
             self.rect.x = new_x
         if 0 <= new_y <= screen.get_height() - self.rect.height:
             self.rect.y = new_y
-
-
+    
     def draw_trail(self, screen):
         if len(self.trail) > 1:
             pygame.draw.lines(screen, self.trail_color, False, self.trail, 5)
@@ -546,7 +525,6 @@ class AICar(pygame.sprite.Sprite):
         self.speed = 0
         self.current_action_index = 0
         self.trail = []
-
 
 def run_game(width, height):
     pygame.init()
@@ -656,7 +634,7 @@ def run_game(width, height):
                         # ai_car.model = ai_car.create_model()
                         # ai_car.predict_actions(car.get_positions())
                     ai_car.reset_positions()
-                    ai_car.model = ai_car.create_model()
+                    ai_car.model= ai_car.create_model()
                     ai_car.predict_actions(positions_list, angles_list, speeds_list)
                     
                         
