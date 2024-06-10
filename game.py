@@ -231,8 +231,8 @@ class Car(pygame.sprite.Sprite):
             elif keys[pygame.K_RIGHT]:
                 self.angle -= 5
                 pressed_key = 3  # RIGHT
-        if pressed_key is not None:
-            print(f'pressed_key:{pressed_key}')
+        # if pressed_key is not None:
+        #     print(f'pressed_key:{pressed_key}')
 
         self.image = pygame.transform.rotate(self.original_image, self.angle)
         self.rect = self.image.get_rect(center=self.rect.center)
@@ -258,15 +258,15 @@ class Car(pygame.sprite.Sprite):
             pygame.draw.lines(screen, self.trail_color, False, self.trail, 5)
     
     def get_keys_recorded(self):
-        print(f'self.keys_recorded:{self.keys_recorded}')
+        # print(f'self.keys_recorded:{self.keys_recorded}')
         return self.keys_recorded
     
     def get_angle_recorded(self):
-        print(f'angle_:{self.angle_}')
+        # print(f'angle_:{self.angle_}')
         return self.angle_
     
     def get_speed_recorded(self):
-        print(f'speed_:{self.speed_}')
+        # print(f'speed_:{self.speed_}')
         return self.speed_
     
     def get_positions(self):
@@ -322,7 +322,7 @@ class AICar(pygame.sprite.Sprite):
         X_normalized = scaler.fit_transform(X)
 
         # Polynomial features
-        poly = PolynomialFeatures(degree=10) 
+        poly = PolynomialFeatures(degree=5) 
         self.X_poly = poly.fit_transform(X_normalized)
 
         # Split the data into training and validation sets
@@ -330,19 +330,25 @@ class AICar(pygame.sprite.Sprite):
 
         # Create the model
         model = Sequential()
-        model.add(Dense(512, input_dim=self.X_poly.shape[1], activation='relu'))
+        model.add(Dense(512, input_dim=self.X_poly.shape[1], activation='selu'))
         # model.add(Dropout(0.3))
-        model.add(Dense(256, activation='relu'))
+        model.add(Dense(256, activation='selu'))
         # model.add(Dropout(0.3))
-        model.add(Dense(128, activation='relu'))
+        model.add(Dense(128, activation='selu'))
         # model.add(Dropout(0.3))
-        model.add(Dense(64, activation='relu'))
+        model.add(Dense(64, activation='selu'))
         # model.add(Dropout(0.3))
         # model.add(Dense(32, activation='relu'))
         # # model.add(Dropout(0.3))
         # model.add(Dense(16, activation='relu'))
         # model.add(Dropout(0.3))
-        model.add(Dense(2, activation='linear'))  # Output layer for speed and angle
+
+        # from sklearn.pipeline import make_pipeline
+        # model = make_pipeline(PolynomialFeatures(degree=2), LinearRegression())
+
+
+        model.add(Dense(2, activation='linear'))
+
         model.compile(optimizer=Adam(learning_rate=0.0001), loss='mean_squared_error', metrics=['mae'])
 
         # Define callbacks for early stopping
@@ -479,7 +485,7 @@ class AICar(pygame.sprite.Sprite):
     
     def predict_actions(self, positions, keys, f):
         self.actions_probabilities = self.model.predict(self.X_poly)
-        print(f'actions_probabilities: {self.actions_probabilities}')
+        # print(f'actions_probabilities: {self.actions_probabilities}')
     
     def update(self, screen):
         if self.current_action_index < len(self.actions_probabilities):
@@ -592,10 +598,10 @@ def run_game(width, height):
                     positions_list = car.get_positions()
                     angles_list = car.get_angle_recorded()
                     speeds_list = car.get_speed_recorded()
-                    print(f'keys_list:{keys_list}')
-                    print(f'positions_list:{positions_list}')
-                    print(f'angles_list:{angles_list}')
-                    print(f'speeds_list:{speeds_list}')
+                    # print(f'keys_list:{keys_list}')
+                    # print(f'positions_list:{positions_list}')
+                    # print(f'angles_list:{angles_list}')
+                    # print(f'speeds_list:{speeds_list}')
                     data = {'Time': [], 'X': [], 'Y': [], 'Angle': [], 'Speed': [], 'Keys': []}
 
                     max_length = max(len(keys_list), len(positions_list), len(angles_list), len(speeds_list), len(game_time_history))
