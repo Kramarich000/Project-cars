@@ -1,3 +1,4 @@
+import py4j.java_collections
 import pygame
 import sys
 from pygame.locals import *
@@ -330,12 +331,13 @@ class AICar(pygame.sprite.Sprite):
 
         # Create the model
         model = Sequential()
-        model.add(Dense(512, input_dim=self.X_poly.shape[1], activation='selu'))
+        model.add(Dense(1024, input_dim=self.X_poly.shape[1], activation='selu'))
+        # model.add(Dropout(0.3))
+        model.add(Dense(512, activation='selu'))
         # model.add(Dropout(0.3))
         model.add(Dense(256, activation='selu'))
         # model.add(Dropout(0.3))
         model.add(Dense(128, activation='selu'))
-        # model.add(Dropout(0.3))
         model.add(Dense(64, activation='selu'))
         # model.add(Dropout(0.3))
         # model.add(Dense(32, activation='relu'))
@@ -346,10 +348,9 @@ class AICar(pygame.sprite.Sprite):
         # from sklearn.pipeline import make_pipeline
         # model = make_pipeline(PolynomialFeatures(degree=2), LinearRegression())
 
-
         model.add(Dense(2, activation='linear'))
-
-        model.compile(optimizer=Adam(learning_rate=0.0001), loss='mean_squared_error', metrics=['mae'])
+        
+        model.compile(optimizer=Adam(learning_rate=0.001), loss='mean_squared_error', metrics=['mae'])
 
         # Define callbacks for early stopping
         early_stopping = tf.keras.callbacks.EarlyStopping(
@@ -357,12 +358,11 @@ class AICar(pygame.sprite.Sprite):
         )
 
         # Train the model
-        history = model.fit(X_train, y_train, epochs=500, batch_size=32, callbacks=[early_stopping])
+        history = model.fit(X_train, y_train, epochs=500, batch_size=32, callbacks=[early_stopping], verbose=1)
 
         self.model = model
         self.history = history.history  # Save the history for plotting
 
-        # Plot training & validation loss values
         # Plot training & validation loss values
         plt.figure(figsize=(18, 8))
 
