@@ -1,7 +1,6 @@
 import pygame
 import sys
 from level import *
-from settings import *
 from game import *
  
 # Инициализация Pygame
@@ -11,6 +10,7 @@ pygame.init()
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (0, 0, 255)
+numberOfLvl = 0
 
 # Функция отображения главного меню
 def main_menu(width, height):
@@ -59,18 +59,6 @@ def main_menu(width, height):
             button_1.inflate_ip(-10, -10)  # Возврат размера кнопки к исходному
         draw_text('Начать обучение', font, WHITE, screen, width // 2, height // 2 - 70)
 
-        button_2 = pygame.Rect(width // 2 - 150, height // 2 + 20, button_width, button_height)
-        pygame.draw.rect(screen, BLACK, button_2, border_radius=10)
-        if button_2.collidepoint(mouse_pos):
-            button_2.inflate_ip(10, 10)
-            pygame.draw.rect(screen, GRAY, button_2, border_radius=10)
-            if pygame.mouse.get_pressed()[0]:
-                game_options()
-                pass
-        else:
-            button_2.inflate_ip(-10, -10)
-        draw_text('Настройки', font, WHITE, screen, width // 2, height // 2 + 50)
-
         button_3 = pygame.Rect(width // 2 - 150, height // 2 + 140, button_width, button_height)
         pygame.draw.rect(screen, BLACK, button_3, border_radius=10)
         if button_3.collidepoint(mouse_pos):
@@ -97,8 +85,10 @@ def main_menu(width, height):
                 if button_1.collidepoint(event.pos):
                     # Обработка нажатия первой кнопки (переход к выбору уровня)
                     level = level_menu(width, height)  # Отображение меню выбора уровня
+                    numberOfLvl = level #Запоминаем номер уровня в глобальной переменной
+                    print(numberOfLvl)
                     if level is not None:
-                        run_game(width, height)  # Запуск игры с выбранным уровнем
+                        run_game(width, height, numberOfLvl)  # Запуск игры с выбранным уровнем
 
         pygame.display.update()
 
@@ -113,4 +103,3 @@ pygame.display.set_caption('Вождение с ИИ')
 
 # Запуск главного меню
 main_menu(1910, 1070)
-# Я не смог анимировать гифку но думаю мб пусть буде и без анимации прям так поху

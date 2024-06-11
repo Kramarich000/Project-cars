@@ -9,6 +9,8 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (0, 0, 255)
 
+
+
 # Функция отображения меню выбора уровня
 def level_menu(width, height):
     # Определение размеров окна
@@ -36,10 +38,6 @@ def level_menu(width, height):
         pygame.draw.rect(screen, GRAY, button_2, border_radius=10)
         draw_text('Уровень 2', font, WHITE, screen, width // 2, height // 2 + 75)
 
-        button_3 = pygame.Rect(width // 2 - 100, height // 2 + 150, 200, 50)
-        pygame.draw.rect(screen, GRAY, button_3, border_radius=10)
-        draw_text('Уровень 3', font, WHITE, screen, width // 2, height // 2 + 175)
-
         for event in pygame.event.get():
             if event.type == QUIT:
                 pygame.quit()
@@ -54,8 +52,6 @@ def level_menu(width, height):
                     return 1  # Возвращаем номер выбранного уровня
                 elif button_2.collidepoint(event.pos):
                     return 2
-                elif button_3.collidepoint(event.pos):
-                    return 3
 
         pygame.display.update()
 
@@ -65,5 +61,3 @@ def draw_text(text, font, color, surface, x, y):
     text_rect = text_obj.get_rect()
     text_rect.center = (x, y)
     surface.blit(text_obj, text_rect)
-
-# Теперь при вызове level_menu(width, height) будет отображаться фоновое изображение.
