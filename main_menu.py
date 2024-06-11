@@ -1,105 +1,127 @@
 import pygame
 import sys
-from level import *
-from game import *
- 
+from level import level_menu, draw_text
+from game import run_game
+
 # Инициализация Pygame
 pygame.init()
+pygame.display.set_caption("Project Cars")
 
 # Определение цветов
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-GRAY = (0, 0, 255)
+GRAY = (169, 169, 169)
+DARK_GRAY = (105, 105, 105)
 numberOfLvl = 0
+drive = False
 
 # Функция отображения главного меню
 def main_menu(width, height):
+    global drive, numberOfLvl
     # Определение размеров окна
     WINDOW_SIZE = (width, height)
-    screen = pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE)  # Установка режима изменяемого размера окна
+    screen = pygame.display.set_mode(WINDOW_SIZE)  
 
-    # Загрузка гиф-анимации
-    gif_path = "background.gif"
-    gif = pygame.image.load(gif_path)
-
-    # Преобразование гиф-анимации для корректного отображения
-    gif_rect = gif.get_rect()
-
-    # Установка размеров окна
+    path = "main_menu.jpg"
+    image = pygame.image.load(path)
+    image = pygame.transform.scale(image, (width, height))  # Изменение размера изображения в соответствии с окном
+    image_rect = image.get_rect()
     screen_rect = screen.get_rect()
-    gif_rect.center = screen_rect.center
+    image_rect.center = screen_rect.center
 
     # Загрузка шрифта
     font = pygame.font.SysFont("DejaVuSans", 38, bold=True)
-    title_font = pygame.font.SysFont("DejaVuSans", 86, bold=True)
 
     button_width = 300
     button_height = 70
+    border_radius = 20  # Радиус закругления углов
 
     while True:
-        screen.fill(BLACK)  # Заполнение экрана белым цветом
+        screen.fill(BLACK)  # Заполнение экрана черным цветом
 
-        # Отображение гиф-анимации на фоне
-        screen.blit(gif, gif_rect)
+        screen.blit(image, image_rect)
 
-        draw_text('Главное меню', title_font, WHITE, screen, width // 2, height // 4)
-        
         mouse_pos = pygame.mouse.get_pos()
 
-        # Отображение кнопок меню и их обработка
-        button_1 = pygame.Rect(width // 2 - 150, height // 2 - 100, button_width, button_height)
-        pygame.draw.rect(screen, BLACK, button_1, border_radius=10)  # Сглаживание углов
-        if button_1.collidepoint(mouse_pos):
-            button_1.inflate_ip(10, 10)  # Увеличение размера кнопки при наведении мыши
-            pygame.draw.rect(screen, GRAY, button_1, border_radius=10)  # Изменение цвета при наведении
-            if pygame.mouse.get_pressed()[0]:
-                # Здесь вы можете добавить код для перехода к соответствующему режиму обучения
-                level_menu() 
-        else:
-            button_1.inflate_ip(-10, -10)  # Возврат размера кнопки к исходному
-        draw_text('Начать обучение', font, WHITE, screen, width // 2, height // 2 - 70)
+        # Создание поверхности с альфа-каналом для кнопок
+        button_surface = pygame.Surface((button_width, button_height), pygame.SRCALPHA)
+        
+        # Определение цвета кнопок с альфа-каналом
+        button_color = (*BLACK, 150)  # Черный цвет с прозрачностью 150 (из 255)
 
+        # Создание кнопок
+        button_1 = pygame.Rect(width // 2 - 150, height // 2 - 150, button_width, button_height)
+        button_2 = pygame.Rect(width // 2 - 150, height // 2 - 20, button_width, button_height)
         button_3 = pygame.Rect(width // 2 - 150, height // 2 + 140, button_width, button_height)
-        pygame.draw.rect(screen, BLACK, button_3, border_radius=10)
-        if button_3.collidepoint(mouse_pos):
-            button_3.inflate_ip(10, 10)
-            pygame.draw.rect(screen, GRAY, button_3, border_radius=10)
-            if pygame.mouse.get_pressed()[0]:
-                pygame.quit()
-                sys.exit()
-        else:
-            button_3.inflate_ip(-10, -10)
-        draw_text('Выход', font, WHITE, screen, width // 2, height // 2 + 170)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
             elif event.type == pygame.VIDEORESIZE:  # Обработка изменения размера окна
-                width = event.w
-                height = event.h
-                screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)  # Установка новых размеров окна
-                gif = pygame.transform.scale(gif, (width, height))  # Изменение размера 
-                gif_rect = gif.get_rect(center=screen_rect.center)  # Обновление позиции 
-            elif event.type == MOUSEBUTTONDOWN:  # Обработка нажатия кнопки мыши
-                if button_1.collidepoint(event.pos):
-                    # Обработка нажатия первой кнопки (переход к выбору уровня)
-                    level = level_menu(width, height)  # Отображение меню выбора уровня
-                    numberOfLvl = level #Запоминаем номер уровня в глобальной переменной
-                    print(numberOfLvl)
-                    if level is not None:
-                        run_game(width, height, numberOfLvl)  # Запуск игры с выбранным уровнем
+                width, height = event.w, event.h
+                screen = pygame.display.set_mode((width, height))
+                image = pygame.transform.scale(image, (width, height))
+                image_rect = image.get_rect(center=screen_rect.center)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:  # Левая кнопка мыши
+                    if button_1.collidepoint(event.pos):
+                        level = level_menu(width, height)
+                        if level is not None:
+                            drive = False
+                            numberOfLvl = level
+                            with open('numberOfLvl_value.txt', 'w') as f:
+                                f.write(str(numberOfLvl))
+                            with open('drive_value.txt', 'w') as f:
+                                f.write(str(drive))
+                            run_game(width, height, numberOfLvl)
+                    elif button_2.collidepoint(event.pos):
+                        level = level_menu(width, height)
+                        if level is not None:
+                            drive = True
+                            numberOfLvl = level
+                            with open('numberOfLvl_value.txt', 'w') as f:
+                                f.write(str(numberOfLvl))
+                            with open('drive_value.txt', 'w') as f:
+                                f.write(str(drive))
+                            run_game(width, height, numberOfLvl)
+                    elif button_3.collidepoint(event.pos):
+                        pygame.quit()
+                        sys.exit()
+
+        # Отрисовка кнопок
+        if button_1.collidepoint(mouse_pos):
+            pygame.draw.rect(button_surface, (*DARK_GRAY, 200), (0, 0, button_width, button_height), border_radius=border_radius)
+        else:
+            pygame.draw.rect(button_surface, button_color, (0, 0, button_width, button_height), border_radius=border_radius)
+        screen.blit(button_surface, button_1.topleft)
+        draw_text('Начать обучение', font, WHITE, screen, width // 2, height // 2 - 115)
+
+        if button_2.collidepoint(mouse_pos):
+            pygame.draw.rect(button_surface, (*DARK_GRAY, 200), (0, 0, button_width, button_height), border_radius=border_radius)
+        else:
+            pygame.draw.rect(button_surface, button_color, (0, 0, button_width, button_height), border_radius=border_radius)
+        screen.blit(button_surface, button_2.topleft)
+        draw_text('Начать вождение', font, WHITE, screen, width // 2, height // 2 + 15)
+
+        if button_3.collidepoint(mouse_pos):
+            pygame.draw.rect(button_surface, (*DARK_GRAY, 200), (0, 0, button_width, button_height), border_radius=border_radius)
+        else:
+            pygame.draw.rect(button_surface, button_color, (0, 0, button_width, button_height), border_radius=border_radius)
+        screen.blit(button_surface, button_3.topleft)
+        draw_text('Выход', font, WHITE, screen, width // 2, height // 2 + 175)
+
+        # Отрисовка дополнительного текста
+        info_font = pygame.font.SysFont("DejaVuSans", 24)
+        info_text = " - Created by Avakov Karen & Nikita Plotnikov. All rights reserved © - "
+        info_x = width // 2
+        info_y = height - 50
+
+        draw_text(info_text, info_font, WHITE, screen, info_x, info_y)
 
         pygame.display.update()
-
-# Функция отрисовки текста
-def draw_text(text, font, color, surface, x, y):
-    text_obj = font.render(text, True, color)
-    text_rect = text_obj.get_rect()
-    text_rect.center = (x, y)
-    surface.blit(text_obj, text_rect)
 
 pygame.display.set_caption('Вождение с ИИ')
 
 # Запуск главного меню
-main_menu(1910, 1070)
+main_menu(1920, 1080)

@@ -40,11 +40,11 @@ class AICar(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=(x, y))
         self.angle = 0
         self.speed = 0
-        self.maxForwardSpeed = 12
-        self.maxBackSpeed = -6
-        self.forwardAcceleration = 0.15
-        self.backAcceleration = 0.1
-        self.min_turn_speed = 0
+        self.maxForwardSpeed = 6
+        self.maxBackSpeed = -3
+        self.forwardAcceleration = 0.1
+        self.backAcceleration = 0.05
+        self.min_turn_speed = 1
         self.positions = []
         self.final_model = None  
         self.frames_since_last_update = 0  # Счетчик кадров
@@ -228,16 +228,63 @@ class AICar(pygame.sprite.Sprite):
         # plt.show()
 
         # Save the model
-        model.save("car_race.h5")
+        # model.save("car_race.h5")
 
-        return model
+        # return model
     # 
     # 
     
     
-    def predict_actions(self, positions, keys, f):
-        self.actions_probabilities = self.model.predict(self.X_poly)
-        # print(f'actions_probabilities: {self.actions_probabilities}')
+    def predict_actions(self, drive):
+        if drive == "False":
+            self.actions_probabilities = self.model.predict(self.X_poly)
+            # print(f'actions_probabilities: {self.actions_probabilities}')
+        else:
+            # print(f'model_1:{self.model}')
+            with open('numberOfLvl_value.txt', 'r') as f:
+                numberOfLvl = int(f.read().strip())
+            if numberOfLvl == 1:
+                self.model = load_model('car_race_1.h5')
+                df = pd.read_csv('car_data_1.csv')
+                X = df[['Time', 'X', 'Y', 'Keys']].values
+                y = df[['Speed', 'Angle']].values
+
+                # Data normalization
+                scaler = StandardScaler() # RobustScaler MaxAbsScaler
+                X_normalized = scaler.fit_transform(X)
+
+                # Polynomial features
+                poly = PolynomialFeatures(degree=5) 
+                self.X_poly = poly.fit_transform(X_normalized)
+                self.actions_probabilities = self.model.predict(self.X_poly)
+            if numberOfLvl == 2:
+                self.model = load_model('car_race_2.h5')
+                df = pd.read_csv('car_data_2.csv')
+                X = df[['Time', 'X', 'Y', 'Keys']].values
+                y = df[['Speed', 'Angle']].values
+
+                # Data normalization
+                scaler = StandardScaler() # RobustScaler MaxAbsScaler
+                X_normalized = scaler.fit_transform(X)
+
+                # Polynomial features
+                poly = PolynomialFeatures(degree=5) 
+                self.X_poly = poly.fit_transform(X_normalized)
+                self.actions_probabilities = self.model.predict(self.X_poly)
+            if numberOfLvl == 3:
+                self.model = load_model('car_race_3.h5')
+                df = pd.read_csv('car_data_3.csv')
+                X = df[['Time', 'X', 'Y', 'Keys']].values
+                y = df[['Speed', 'Angle']].values
+
+                # Data normalization
+                scaler = StandardScaler() # RobustScaler MaxAbsScaler
+                X_normalized = scaler.fit_transform(X)
+
+                # Polynomial features
+                poly = PolynomialFeatures(degree=5) 
+                self.X_poly = poly.fit_transform(X_normalized)
+                self.actions_probabilities = self.model.predict(self.X_poly)
     
     def update(self, screen):
         if self.current_action_index < len(self.actions_probabilities):
@@ -272,14 +319,15 @@ class AICar(pygame.sprite.Sprite):
             self.rect.x = new_x
         if 0 <= new_y <= screen.get_height() - self.rect.height:
             self.rect.y = new_y
+
     
     def draw_trail(self, screen):
         if len(self.trail) > 1:
             pygame.draw.lines(screen, self.trail_color, False, self.trail, 5)
 
-    def reset_positions(self):
-        self.rect.center = (1910 // 2, 1070 // 2)
-        self.angle = 0
-        self.speed = 0
-        self.current_action_index = 0
-        self.trail = []
+    # def reset_positions(self):
+    #     self.rect.center = (1920 // 2 + 420, 1080 // 2)
+    #     self.angle = 0
+    #     self.speed = 0
+    #     self.current_action_index = 0
+    #     self.trail = []

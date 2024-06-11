@@ -1,34 +1,16 @@
-import pygame
-import sys
-from pygame.locals import *
-import math
-import time
-import os
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-import tensorflow as tf
-import numpy as np
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import Dense, LSTM, Dropout, LeakyReLU, Activation, GRU, Attention, Conv1D, BatchNormalization, MaxPooling1D, Flatten
-from tensorflow.keras.optimizers import SGD, Adam, RMSprop
-from tensorflow.keras.regularizers import l2
-from sklearn.model_selection import train_test_split, KFold
-from sklearn.preprocessing import StandardScaler, MaxAbsScaler,RobustScaler,MaxAbsScaler,Normalizer, MinMaxScaler ,PowerTransformer, QuantileTransformer, KernelCenterer, PolynomialFeatures
-import logging
-from hyperopt import hp, fmin, tpe, Trials
 from AiCar import AICar
 from Car import Car
-
-
-# Определение цветов
+import pygame
+import sys
+import math
+import time
+import pandas as pd
+import os
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 
-# Определение направлений движения для машинки
 UP = 'up'
 DOWN = 'down'
 LEFT = 'left'
@@ -73,7 +55,7 @@ class Level:
         screen.blit(window_surface, (0, 0))
         def open_main_menu():
             import main_menu
-            main_menu.main_menu(1910, 1070)
+            main_menu.main_menu(1920, 1080)
 
         def start_ai_race(self):
             self.ai_mode = True
@@ -104,15 +86,15 @@ class Level:
         draw_button("Проезд ИИ", button2)
         # Обработка событий
         for event in pygame.event.get():
-            if event.type == QUIT:
+            if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            elif event.type == VIDEORESIZE:  # Обработка изменения размера окна
+            elif event.type == pygame.VIDEORESIZE:  # Обработка изменения размера окна
                 width = event.w
                 height = event.h
-                screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)  # Установка новых размеров окна
+                screen = pygame.display.set_mode((width, height))  # Установка новых размеров окна
                 background = Level(width, height)
-            elif event.type == MOUSEBUTTONDOWN:  # Обработка нажатия кнопки мыши
+            elif event.type == pygame.MOUSEBUTTONDOWN:  # Обработка нажатия кнопки мыши
                 mouse_pos = event.pos
                 if button1.collidepoint(mouse_pos):
                     open_main_menu()
@@ -195,11 +177,11 @@ class Level:
 def run_game(width, height, numberOfLvl):
     pygame.init()
     WINDOW_SIZE = (width, height)
-    screen = pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE)
+    screen = pygame.display.set_mode(WINDOW_SIZE)
     clock = pygame.time.Clock()
 
-    car = Car(width // 2, height // 2)
-    ai_car = AICar(width // 2, height // 2)
+    car = Car(width // 2 + 420, height // 2)
+    ai_car = AICar(width // 2 + 420, height // 2)
     all_sprites = pygame.sprite.Group(car, ai_car)
 
     background = Level(width, height)
@@ -218,7 +200,7 @@ def run_game(width, height, numberOfLvl):
 
     def open_main_menu():
         import main_menu
-        main_menu.main_menu(1910, 1070)
+        main_menu.main_menu(1920, 1080)
 
     def draw_button(text, rect):
         pygame.draw.rect(screen, BLACK, rect)
@@ -239,15 +221,15 @@ def run_game(width, height, numberOfLvl):
         # print("Прошло времени:", elapsed_time)
 
         for event in pygame.event.get():
-            if event.type == QUIT:
+            if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-            elif event.type == VIDEORESIZE:
+            elif event.type == pygame.VIDEORESIZE:
                 width = event.w
                 height = event.h
-                screen = pygame.display.set_mode((width, height), pygame.RESIZABLE)
+                screen = pygame.display.set_mode((width, height))
                 background = Level(width, height)
-            elif event.type == MOUSEBUTTONDOWN:
+            elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = event.pos
                 if button1.collidepoint(mouse_pos):
                     open_main_menu()
@@ -298,9 +280,17 @@ def run_game(width, height, numberOfLvl):
                     # if actions_true:
                         # ai_car.model = ai_car.create_model()
                         # ai_car.predict_actions(car.get_positions())
-                    ai_car.reset_positions()
-                    ai_car.model= ai_car.create_model()
-                    ai_car.predict_actions(positions_list, angles_list, speeds_list)
+                    with open('drive_value.txt', 'r') as f:
+                        drive = f.read().strip()
+                        if drive == 'True':
+                            print('qwerty')
+                            ai_car.predict_actions(drive)
+                            # ai_car.reset_positions()
+                        else:
+                            ai_car.model= ai_car.create_model()
+                            ai_car.predict_actions(drive)
+                            # ai_car.reset_positions()
+
                     
                         
                         # print(f'car.get_positions():{car.get_positions()}')
@@ -361,6 +351,3 @@ def run_game(width, height, numberOfLvl):
         
         pygame.display.update()
         clock.tick(60)
-
-if __name__ == "__main__":
-    run_game(1910, 1070)  # Выбор начальных размеров окна
