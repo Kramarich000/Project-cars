@@ -22,10 +22,10 @@ class Car(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=(x, y))
         self.angle = 0
         self.speed = 0
-        self.maxForwardSpeed = 12
+        self.maxForwardSpeed = 6
         self.forwardAcceleration = 0.15
-        self.maxBackSpeed = -6
-        self.backAcceleration = 0.1
+        self.maxBackSpeed = -3
+        self.backAcceleration = 0.05
         self.min_turn_speed = 1
         self.positions = []
         self.angle_ = []
