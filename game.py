@@ -22,9 +22,8 @@ class Level:
         self.screen = pygame.display.set_mode((self.width, self.height))
         self.track_image, self.track_x, self.track_y = self.load_track_image(numberOfLvl)
         self.track_mask = pygame.mask.from_surface(self.track_image)
-        self.checkpoints = self.create_checkpoints()
+        self.checkpoints = self.create_checkpoints(10, 91, numberOfLvl)
         self.current_checkpoint_index = 0
-        self.lap_count = 0
         self.visited_checkpoints = 0
 
 
@@ -42,99 +41,53 @@ class Level:
         track_mask = pygame.mask.from_surface(self.track_image[0])
         return track_mask
 
-
-    def drawFinalWindow(self, width, height, screen, font, laps, off_track_counter, total_time):
-        window_width, window_height = width, height
-        transparency = 150
-
-        window_surface = pygame.Surface((window_width, window_height), pygame.SRCALPHA)
-        window_surface.fill((0, 0, 0, transparency))
-
-        if laps != self.last_laps:
-            self.laps_text = font.render(f"Круги: {laps}", True, BLACK)
-            self.last_laps = laps
-        if off_track_counter != self.last_off_track_counter:
-            self.off_track_text = font.render(f"Выездов за трассу: {off_track_counter}", True, BLACK)
-            self.last_off_track_counter = off_track_counter
-        total_time_text = font.render(f'Общее время прохождения: {total_time}', True, (255, 255, 255))
-
-        laps_text_rect = self.laps_text.get_rect(center=(window_width // 2, window_height // 2 - 50))
-        off_track_text_rect = self.off_track_text.get_rect(center=(window_width // 2, window_height // 2))
-        total_time_text_rect = total_time_text.get_rect(center=(window_width // 2, window_height // 2 + 50))
-
-        screen.blit(self.laps_text, (10, 10))
-        window_surface.blit(self.off_track_text, off_track_text_rect)
-        window_surface.blit(total_time_text, total_time_text_rect)
-
-        screen.blit(window_surface, (0, 0))
-
-        button_width = 200
-        button_height = 50
-        offset = 100
-
-        button1_x = (width - button_width) // 2
-        button1_y = (height - button_height) // 2 + offset
-
-        button2_x = (width - button_width) // 2
-        button2_y = (height - button_height) // 2 + offset + 60
-
-        button1 = pygame.Rect(button1_x, button1_y, button_width, button_height)
-        button2 = pygame.Rect(button2_x, button2_y, button_width, button_height)
-
-        self.draw_button("Главное меню", button1)
-        self.draw_button("Проезд ИИ", button2)
-
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            elif event.type == pygame.VIDEORESIZE:
-                width = event.w
-                height = event.h
-                screen = pygame.display.set_mode((width, height))
-                background = Level(width, height)
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                mouse_pos = event.pos
-                if button1.collidepoint(mouse_pos):
-                    self.open_main_menu()
-                elif button2.collidepoint(mouse_pos):
-                    self.start_ai_race()
-
-        pygame.display.flip()
-
-        return laps, off_track_counter, total_time
-    
-    
     def check_checkpoints(self, car_rect):
-        for i, checkpoint in enumerate(self.checkpoints):
-            if car_rect.colliderect(checkpoint):
-                if i == self.current_checkpoint_index:
-                    self.current_checkpoint_index = (self.current_checkpoint_index + 1) % len(self.checkpoints)
-                    if self.current_checkpoint_index == 0:
-                        self.lap_count += 1
-                    self.visited_checkpoints += 1
-                    return checkpoint
-                else:
-                    return None
+        current_checkpoint = self.checkpoints[self.current_checkpoint_index]
+        if car_rect.colliderect(current_checkpoint):
+            self.current_checkpoint_index = (self.current_checkpoint_index + 1) % len(self.checkpoints)
+            self.visited_checkpoints += 1
+            return current_checkpoint
         return None
 
     def check_all_checkpoints_visited(self):
         return self.visited_checkpoints == len(self.checkpoints)
     
-    def create_checkpoints(self):
-        checkpoints = [
-            pygame.Rect(self.width // 2 - 50, self.height // 2 - 480, 95, 100),  # верхний чекпоинт
-            pygame.Rect(self.width // 2 - 480, self.height // 2 - 50, 100, 95),  # левый чекпоинт
-            pygame.Rect(self.width // 2 - 50, self.height // 2 + 380, 95, 100),  # нижний чекпоинт
-            pygame.Rect(self.width // 2 + 380, self.height // 2 - 50, 100, 95),  # правый чекпоинт
-        ]
+    def create_checkpoints(self, checkpoint_width, checkpoint_height, numberOfLvl):
+        if numberOfLvl == 1:
+            checkpoints = [
+                pygame.Rect(self.width // 2 - 350, self.height // 2 - 218, checkpoint_width, 120),
+                pygame.Rect(self.width // 2 - 350, self.height // 2 + 98, checkpoint_width, 120),
+                pygame.Rect(self.width // 2 + 320, self.height // 2 + 98, checkpoint_width, 120),
+                pygame.Rect(self.width // 2 + 320, self.height // 2 - 218, checkpoint_width, 120),
+            ]
+        elif numberOfLvl == 2:
+            checkpoints = [
+                pygame.Rect(500, 268, checkpoint_width, checkpoint_height),
+                pygame.Rect(self.width // 2 - 400, self.height // 2 - 33, checkpoint_width, checkpoint_height),
+                pygame.Rect(self.width // 2 + 400, self.height // 2 + 220, checkpoint_width, checkpoint_height),
+                pygame.Rect(self.width // 2 + 450, self.height // 2 - 20, checkpoint_width, checkpoint_height),
+                pygame.Rect(self.width // 2 + 15, 270, checkpoint_width, checkpoint_height),
+            ]
+        elif numberOfLvl == 3:
+            checkpoints = [
+                pygame.Rect(self.width // 2 + 361, self.height // 2 - 320, 88, 10),
+                pygame.Rect(self.width // 2 - 97, self.height // 2 - 150, 88, 10),
+                pygame.Rect(self.width // 2 - 300, self.height // 2 + 261, 10, 66),
+                pygame.Rect(self.width // 2 + 187, self.height // 2 + 370, 87, 10),
+                pygame.Rect(self.width // 2 + 361, self.height // 2 - 90, 88, 10),
+            ]
         return checkpoints
 
     def draw(self, screen):
         screen.blit(self.track_image, (self.track_x, self.track_y))
-        # for checkpoint in self.checkpoints:
-        #     pygame.draw.rect(screen, BLACK, checkpoint)
-
+        if self.checkpoints:
+            current_checkpoint = self.checkpoints[self.current_checkpoint_index]
+            pygame.draw.rect(screen, RED, current_checkpoint)
+    # def draw(self, screen):
+    #     screen.blit(self.track_image, (self.track_x, self.track_y))
+    #     for checkpoint in self.checkpoints:
+    #         pygame.draw.rect(screen, RED, checkpoint)
+    
     def is_on_track(self, car_surface, car_rect):
         car_mask = pygame.mask.from_surface(car_surface)
         offset_x = car_rect.x - self.track_x
@@ -160,37 +113,53 @@ def run_game(width, height, numberOfLvl):
     WINDOW_SIZE = (width, height)
     screen = pygame.display.set_mode(WINDOW_SIZE)
     clock = pygame.time.Clock()
-    if numberOfLvl == 1:
-        car = Car(width // 2 + 400, height // 2 - 160)
-        ai_car = AICar(width // 2 + 400, height // 2 - 160)
-        car.angle += 90
-        ai_car.angle += 90
-    if numberOfLvl == 2:
-        car = Car(width // 2 + 80, height // 2 - 220)
-        ai_car = AICar(width // 2 + 80, height // 2 - 220)
-        car.angle += 90
-        ai_car.angle += 90
-    if numberOfLvl == 3:
-        car = Car(width // 2 + 410, height // 2)
-        ai_car = AICar(width // 2 + 410, height // 2)
 
+    def initialize_cars():
+        if numberOfLvl == 1:
+            car = Car(width // 2 + 400, height // 2 - 160)
+            ai_car = AICar(width // 2 + 400, height // 2 - 160)
+            car.angle += 90
+            ai_car.angle += 90
+        if numberOfLvl == 2:
+            car = Car(width // 2 + 80, height // 2 - 220)
+            ai_car = AICar(width // 2 + 80, height // 2 - 220)
+            car.angle += 90
+            ai_car.angle += 90
+        if numberOfLvl == 3:
+            car = Car(width // 2 + 410, height // 2)
+            ai_car = AICar(width // 2 + 410, height // 2)
+        return car, ai_car
+
+    car, ai_car = initialize_cars()
     background = Level(width, height, numberOfLvl)
 
     font = pygame.font.Font(None, 36)
-    laps = 0
     last_checkpoint = None
     off_track_counter = 0
     last_off_track = False
     game_start_time = time.time()
-    lap_start_time = game_start_time
-    maxLaps = 300
+    player_control = True
 
     ai_mode = False
 
-    button1 = pygame.Rect(5, 200, 200, 50)
-    button2 = pygame.Rect(5, 260, 200, 50)
+    button1 = pygame.Rect(5, 170, 200, 50)
+    button2 = pygame.Rect(5, 230, 200, 50)
+    button3 = pygame.Rect(5, 290, 200, 50)
 
     game_time_history = []
+
+    def reset_game():
+        nonlocal car, ai_car, last_checkpoint, off_track_counter, last_off_track, game_start_time, ai_mode, game_time_history, player_control
+        car, ai_car = initialize_cars()
+        last_checkpoint = None
+        off_track_counter = 0
+        last_off_track = False
+        game_start_time = time.time()
+        ai_mode = False
+        game_time_history = []
+        background.current_checkpoint_index = 0
+        background.visited_checkpoints = 0
+        player_control = True
 
     while True:
         all_sprites = pygame.sprite.Group()
@@ -216,6 +185,7 @@ def run_game(width, height, numberOfLvl):
                 if button1.collidepoint(mouse_pos):
                     background.open_main_menu()
                 elif button2.collidepoint(mouse_pos):
+                    ai_car.show()
                     ai_mode = True
                     keys_list = car.get_keys_recorded()
                     positions_list = car.get_positions()
@@ -243,18 +213,15 @@ def run_game(width, height, numberOfLvl):
                             ai_car.model = ai_car.create_model()
                             ai_car.predict_actions(drive)
 
-        if laps >= maxLaps:
-            background.drawFinalWindow(width, height, screen, font, laps, off_track_counter, f"{total_time:.2f} сек")
-            pygame.display.update()
-            continue
+                elif button3.collidepoint(mouse_pos):
+                    reset_game()
 
         keys = pygame.key.get_pressed()
 
-        if not ai_mode:
-            car.update(keys)
+        if not ai_mode and player_control:
             ai_car.hide()
+            car.update(keys)
         else:
-            ai_car.show()
             ai_car.update(screen)
 
         car.rect.x = max(0, min(width - car.rect.width, car.rect.x))
@@ -264,19 +231,17 @@ def run_game(width, height, numberOfLvl):
         if checkpoint and checkpoint != last_checkpoint:
             last_checkpoint = checkpoint
             if checkpoint == background.checkpoints[-1]:
-                laps += 1
-                lap_start_time = time.time()
+                player_control = False
 
         if background.is_on_track(car.image, car.rect):
             if last_off_track:
                 last_off_track = False
-            text = font.render(f"Вы едете по трассе - Круги: {laps} Посещено чекпоинтов: {background.visited_checkpoints}", True, BLACK)
+            text = font.render(f"Вы едете по трассе - Посещено чекпоинтов: {background.visited_checkpoints}", True, BLACK)
         else:
             if not last_off_track:
-                lap_start_time -= 2
                 off_track_counter += 1
                 last_off_track = True
-            text = font.render(f"Вы съехали с трассы - Круги: {laps} Посещено чекпоинтов: {background.visited_checkpoints}", True, BLACK)
+            text = font.render(f"Вы съехали с трассы - Посещено чекпоинтов: {background.visited_checkpoints}", True, BLACK)
 
         background.draw(screen)
         all_sprites.draw(screen)
@@ -287,17 +252,15 @@ def run_game(width, height, numberOfLvl):
         screen.blit(off_track_text, (10, 50))
 
         total_time = time.time() - game_start_time
-        lap_time = time.time() - lap_start_time
         total_time_text = font.render(f"Общее время: {total_time:.2f} сек", True, BLACK)
         screen.blit(total_time_text, (10, 90))
-        lap_time_text = font.render(f"Время текущего круга: {lap_time:.2f} сек", True, BLACK)
-        screen.blit(lap_time_text, (10, 130))
 
         background.draw_button("Главное меню", button1)
         background.draw_button("Проезд ИИ", button2)
+        background.draw_button("Рестарт", button3)
 
         fps = font.render(f"FPS: {int(clock.get_fps())}", True, BLACK)
-        screen.blit(fps, (10, 170))     
+        screen.blit(fps, (10, 130))     
         
         pygame.display.update()
         clock.tick(60)
