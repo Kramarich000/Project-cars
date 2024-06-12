@@ -111,6 +111,4 @@ def main_menu(width, height):
 
         pygame.display.update()
 
-pygame.display.set_caption('Вождение с ИИ')
-
 main_menu(1920, 1080)

@@ -4,7 +4,7 @@ import pygame
 import sys
 import time
 import pandas as pd
-
+pygame.display.set_caption("game")
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)

@@ -40,7 +40,7 @@ class AICar(pygame.sprite.Sprite):
         self.positions = []
         self.final_model = None  
         self.frames_since_last_update = 0  
-        self.actions_probabilities = []  # Массив для хранения вероятностей предсказанных действий
+        self.actions_probabilities = []  # Массив для хранения предсказанных действий
         self.current_action_index = 0
         self.logger = logging.getLogger(__name__)
         handler = logging.FileHandler('car_model.log', encoding='utf-8')
@@ -70,17 +70,9 @@ class AICar(pygame.sprite.Sprite):
 
         model = Sequential()
         model.add(Dense(512, input_dim=self.X_poly.shape[1], activation='selu'))
-        # model.add(Dropout(0.3))
         model.add(Dense(256, activation='selu'))
-        # model.add(Dropout(0.3))
         model.add(Dense(128, activation='selu'))
-        # model.add(Dropout(0.3))
         model.add(Dense(64, activation='selu'))
-        # model.add(Dropout(0.3))
-        # model.add(Dense(32, activation='relu'))
-        # # model.add(Dropout(0.3))
-        # model.add(Dense(16, activation='relu'))
-        # model.add(Dropout(0.3))
 
         model.add(Dense(2, activation='linear'))
 
@@ -148,7 +140,7 @@ class AICar(pygame.sprite.Sprite):
                 self.X_poly = poly.fit_transform(X_normalized)
                 self.actions_probabilities = self.model.predict(self.X_poly)
             if numberOfLvl == 2:
-                self.model = load_model('car_race_2.h5')
+                self.model = load_model('car_race_1.h5')
                 df = pd.read_csv('car_data_2.csv')
                 X = df[['Time', 'X', 'Y', 'Keys']].values
 
@@ -214,10 +206,3 @@ class AICar(pygame.sprite.Sprite):
 
     def show(self):
         self.visible = True
-
-    # def reset_positions(self):
-    #     self.rect.center = (1920 // 2 + 420, 1080 // 2)
-    #     self.angle = 0
-    #     self.speed = 0
-    #     self.current_action_index = 0
-    #     self.trail = []
