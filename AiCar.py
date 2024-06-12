@@ -27,7 +27,7 @@ class AICar(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
         self.original_image = pygame.image.load('AICar.png')
-        self.original_image = pygame.transform.scale(self.original_image, (40, 87))
+        self.original_image = pygame.transform.scale(self.original_image, (40, 80))
         self.image = self.original_image.copy()
         self.rect = self.image.get_rect(center=(x, y))
         self.angle = 0
@@ -53,6 +53,7 @@ class AICar(pygame.sprite.Sprite):
         self.model = None
         self.X_poly = None
         self.history = None
+        self.visible = False
 
     def create_model(self): 
         df = pd.read_csv('car_data.csv')
@@ -207,6 +208,12 @@ class AICar(pygame.sprite.Sprite):
     def draw_trail(self, screen):
         if len(self.trail) > 1:
             pygame.draw.lines(screen, self.trail_color, False, self.trail, 2)
+
+    def hide(self):
+        self.visible = False
+
+    def show(self):
+        self.visible = True
 
     # def reset_positions(self):
     #     self.rect.center = (1920 // 2 + 420, 1080 // 2)
