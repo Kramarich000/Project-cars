@@ -15,7 +15,7 @@ class Car(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
         self.original_image = pygame.image.load('MyCar.png')
-        self.original_image = pygame.transform.scale(self.original_image, (40, 87))
+        self.original_image = pygame.transform.scale(self.original_image, (40, 80))
         self.image = self.original_image.copy()
         self.rect = self.image.get_rect(center=(x, y))
         self.angle = 0
@@ -51,10 +51,10 @@ class Car(pygame.sprite.Sprite):
 
         if abs(self.speed) > self.min_turn_speed:
             if keys[pygame.K_LEFT]:
-                self.angle += 3
+                self.angle += 2.5
                 pressed_key = 2  # LEFT
             elif keys[pygame.K_RIGHT]:
-                self.angle -= 3
+                self.angle -= 2.5
                 pressed_key = 3  # RIGHT
 
         self.image = pygame.transform.rotate(self.original_image, self.angle)
