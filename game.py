@@ -130,10 +130,14 @@ class Level:
         ]
         return checkpoints
 
+
     def delete_Checkpoints(self):
         self.checkpoints = []
 
     def draw(self, screen, numberOfLvl):
+
+    def draw(self, screen):
+
         screen.blit(self.track_image, (self.track_x, self.track_y))
         # for checkpoint in self.checkpoints:
         #     pygame.draw.rect(screen, BLACK, checkpoint)
@@ -169,10 +173,19 @@ def run_game(width, height, numberOfLvl):
     WINDOW_SIZE = (width, height)
     screen = pygame.display.set_mode(WINDOW_SIZE)
     clock = pygame.time.Clock()
-
-    car = Car(width // 2 + 420, height // 2)
-    ai_car = AICar(width // 2 + 420, height // 2)
-    all_sprites = pygame.sprite.Group(car, ai_car)
+    if numberOfLvl == 1:
+        car = Car(width // 2 + 400, height // 2 - 160)
+        ai_car = AICar(width // 2 + 400, height // 2 - 160)
+        car.angle += 90
+        ai_car.angle += 90
+    if numberOfLvl == 2:
+        car = Car(width // 2 + 80, height // 2 - 220)
+        ai_car = AICar(width // 2 + 80, height // 2 - 220)
+        car.angle += 90
+        ai_car.angle += 90
+    if numberOfLvl == 3:
+        car = Car(width // 2 + 410, height // 2)
+        ai_car = AICar(width // 2 + 410, height // 2)
 
     ai_initialX = ai_car.rect.x
     ai_initialY = ai_car.rect.y
@@ -201,6 +214,10 @@ def run_game(width, height, numberOfLvl):
     game_time_history = []
 
     while True:
+        all_sprites = pygame.sprite.Group()
+        all_sprites.add(car)
+        if ai_car.visible:
+            all_sprites.add(ai_car)
         screen.fill(WHITE)
         current_time = time.time()
         elapsed_time = current_time - game_start_time
@@ -256,7 +273,9 @@ def run_game(width, height, numberOfLvl):
 
         if not ai_mode:
             car.update(keys)
+            ai_car.hide()
         else:
+            ai_car.show()
             ai_car.update(screen)
 
         car.rect.x = max(0, min(width - car.rect.width, car.rect.x))
@@ -314,7 +333,7 @@ def run_game(width, height, numberOfLvl):
                 last_off_track = True
             text = font.render(f"Вы съехали с трассы - Круги: {laps} Посещено чекпоинтов: {background.visited_checkpoints}", True, BLACK)
 
-        background.draw(screen, numberOfLvl)
+        background.draw(screen)
         all_sprites.draw(screen)
         car.draw_trail(screen)  
         ai_car.draw_trail(screen)  
