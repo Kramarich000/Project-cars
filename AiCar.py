@@ -57,6 +57,16 @@ class AICar(pygame.sprite.Sprite):
         self.visible = False
 
     def create_model(self): 
+        width = 1920
+        height = 1080
+        WINDOW_SIZE = (width, height)
+        screen = pygame.display.set_mode(WINDOW_SIZE)
+        font = pygame.font.Font(None, 46)
+        text = font.render("Обучение модели в процессе, ожидайте...", True, WHITE)
+        text_rect = text.get_rect(center=(width // 2, height // 2))
+        screen.blit(text, text_rect)
+        pygame.display.flip()
+
         df = pd.read_csv('car_data.csv')
         X = df[['Time', 'X', 'Y', 'Keys']].values
         y = df[['Speed', 'Angle']].values

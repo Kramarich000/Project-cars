@@ -198,13 +198,13 @@ def run_game(width, height, numberOfLvl):
     game_time_history = []
 
     player_disqualified = False
+    ai_training_completed = False
 
     def reset_game():
         screen.fill(WHITE)
         run_game(width, height, numberOfLvl)
 
     player_started = False  
-
     show_results = False 
 
     while True:
@@ -234,7 +234,6 @@ def run_game(width, height, numberOfLvl):
                     ai_mode = True
                     ai_control = True
                     startAi = True
-                    startAiTime = time.time()
                     keys_list = car.get_keys_recorded()
                     positions_list = car.get_positions()
                     angles_list = car.get_angle_recorded()
@@ -249,7 +248,7 @@ def run_game(width, height, numberOfLvl):
                         data['Angle'].append(angles_list[i] if i < len(angles_list) else car.angle)
                         data['Speed'].append(speeds_list[i] if i < len(speeds_list) else car.speed)
                         data['Keys'].append(keys_list[i] if i < len(keys_list) else 4)
-                        data['Time'].append(game_time_history[i] if i < len(game_time_history) else data['Time'].append(time.time() - game_start_time))
+                        data['Time'].append(game_time_history[i] if i < len(game_time_history) else time.time() - game_start_time)
 
                     df = pd.DataFrame(data)
                     df.to_csv('car_data.csv', index=False)
@@ -257,10 +256,16 @@ def run_game(width, height, numberOfLvl):
                         drive = f.read().strip()
                         if drive == 'True':
                             ai_car.predict_actions(drive)
+                            ai_training_completed = True
+                            startAiTime = time.time()
                         else:
                             ai_car.model = ai_car.create_model()
                             ai_car.predict_actions(drive)
-                        background.create_checkpoints(10, 91, numberOfLvl)  # Создаем чекпоинты для текущего уровня
+                            ai_training_completed = True
+                            if ai_training_completed:
+                                startAiTime = time.time()
+
+                        background.create_checkpoints(10, 91, numberOfLvl)  
                         ai_car.show()
                         pressed = False
                 elif button3.collidepoint(mouse_pos):
@@ -286,12 +291,10 @@ def run_game(width, height, numberOfLvl):
                     startAi = True
                     startAiTime = time.time()
 
-
         if CheckAiInitialPos(ai_initialX, ai_initialY, ai_car.rect.x, ai_car.rect.y):
-            if ai_mode:
-                if startAi and startAiTime:
-                    if ai_control:
-                        game_time_ai = time.time() - startAiTime
+            if startAi and startAiTime and ai_mode and ai_control:
+                if ai_control:
+                    game_time_ai = time.time() - startAiTime
                     total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
                     screen.blit(total_time_text_ai, (width - 300, 90))
                     off_track_textAi = font.render(f"Выездов за трассу: {off_track_counter_ai}", True, BLACK)
@@ -312,6 +315,11 @@ def run_game(width, height, numberOfLvl):
                         ai_control = False
 
                 background.draw(screen)
+            else:
+                total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
+                screen.blit(total_time_text_ai, (width - 300, 90))
+                off_track_textAi = font.render(f"Выездов за трассу: {off_track_counter_ai}", True, BLACK)
+                screen.blit(off_track_textAi, (width - 300, 50))
         else:
             total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
             screen.blit(total_time_text_ai, (width - 300, 90))
@@ -345,7 +353,7 @@ def run_game(width, height, numberOfLvl):
         car.draw_trail(screen)  
         ai_car.draw_trail(screen) 
         if text: 
-            screen.blit(text, ((width - text.get_width()) // 2, 10))
+            screen.blit(text, ((width - text.get_width()) // 2, 50))
         
         if player_started and player_control:
             game_time_player = time.time() - game_start_time
@@ -373,6 +381,7 @@ def run_game(width, height, numberOfLvl):
         screen.blit(fps, fps_rect)
         final_results = None
 
+
         if not ai_control and not player_control:
             final_results = [
             ["", "Время", "Выезды за трассу"],
@@ -383,6 +392,7 @@ def run_game(width, height, numberOfLvl):
         cell_width = 250
         cell_height = 60
         row_height = cell_height  
+        
         if final_results is not None:
             if numberOfLvl == 1:
                 x_offset = (width - cell_width * len(final_results[0])) // 2
@@ -401,12 +411,18 @@ def run_game(width, height, numberOfLvl):
                     pygame.draw.rect(screen, BLACK, (x_offset + j * cell_width, y_offset + i * row_height, cell_width, cell_height), 2)
                     if not item:
                         item = ""
+                    elif isinstance(item, float):
+                        item = f"{item:.2f}"  
                     text = font.render(str(item), True, BLACK)
                     text_rect = text.get_rect(center=(x_offset + j * cell_width + cell_width // 2, y_offset + i * row_height + cell_height // 2))
                     screen.blit(text, text_rect)
             if not player_control and not ai_control and not show_results:
                 show_results = True
-                plot_trajectories(car.trail, ai_car.trail)
+
+                car_trail = car.trail
+                ai_trail = ai_car.trail  
+
+                plot_trajectories(car_trail, ai_trail)
 
         pygame.display.update()
         clock.tick(60)
