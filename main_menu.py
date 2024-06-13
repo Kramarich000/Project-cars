@@ -81,6 +81,13 @@ def main_menu(width, height):
                         pygame.quit()
                         sys.exit()
 
+        if button_1.collidepoint(mouse_pos):
+            pygame.draw.rect(button_surface, (*DARK_GRAY, 200), (0, 0, button_width, button_height), border_radius=border_radius)
+        else:
+            pygame.draw.rect(button_surface, button_color, (0, 0, button_width, button_height), border_radius=border_radius)
+        screen.blit(button_surface, button_1.topleft)
+        draw_text('Начать обучение', font, WHITE, screen, width // 2, height // 2 - 115)
+
         if button_2.collidepoint(mouse_pos):
             pygame.draw.rect(button_surface, (*DARK_GRAY, 200), (0, 0, button_width, button_height), border_radius=border_radius)
         else:
