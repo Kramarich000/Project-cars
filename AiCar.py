@@ -38,6 +38,7 @@ class AICar(pygame.sprite.Sprite):
         self.backAcceleration = 0.05
         self.min_turn_speed = 1
         self.positions = []
+        self.drawPositions = []
         self.final_model = None  
         self.frames_since_last_update = 0  
         self.actions_probabilities = []  # Массив для хранения предсказанных действий
@@ -186,6 +187,8 @@ class AICar(pygame.sprite.Sprite):
         dy = math.sin(math.radians(-self.angle - 90)) * self.speed
 
         new_position = (self.rect.centerx, self.rect.centery)
+        self.drawPositions = (new_position)
+
         self.trail.append(new_position)
 
         new_x = self.rect.x + dx
@@ -206,3 +209,6 @@ class AICar(pygame.sprite.Sprite):
 
     def show(self):
         self.visible = True
+
+    def get_positions(self):
+        return self.drawPositions
