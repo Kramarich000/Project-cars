@@ -68,6 +68,16 @@ class Car(pygame.sprite.Sprite):
 
         self.rect.x += dx
         self.rect.y += dy
+
+        if self.rect.left < 0:
+            self.rect.left = 0
+        elif self.rect.right > 1920:
+            self.rect.right = 1920
+        if self.rect.top < 0:
+            self.rect.top = 0
+        elif self.rect.bottom > 1080:
+            self.rect.bottom = 1080
+            
         new_position = (self.rect.centerx, self.rect.centery)
         
         self.drawPositions.append(new_position)
@@ -80,6 +90,7 @@ class Car(pygame.sprite.Sprite):
         
         if pressed_key is not None:
             self.keys_recorded.append(pressed_key)
+        
     
 
     def draw_trail(self, screen):
