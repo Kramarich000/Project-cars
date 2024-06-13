@@ -140,7 +140,7 @@ class AICar(pygame.sprite.Sprite):
                 self.X_poly = poly.fit_transform(X_normalized)
                 self.actions_probabilities = self.model.predict(self.X_poly)
             if numberOfLvl == 2:
-                self.model = load_model('car_race_1.h5')
+                self.model = load_model('car_race_2.h5')
                 df = pd.read_csv('car_data_2.csv')
                 X = df[['Time', 'X', 'Y', 'Keys']].values
 

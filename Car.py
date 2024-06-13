@@ -31,6 +31,8 @@ class Car(pygame.sprite.Sprite):
         self.keys_recorded = []
         self.trail_color = RED  
         self.trail = []   
+        self.initial_x = x
+        self.initial_y = y
 
     def update(self, keys):
         pressed_key = None
