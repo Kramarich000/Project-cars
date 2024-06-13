@@ -80,14 +80,14 @@ def level_menu(width, height):
             if event.type == QUIT:
                 pygame.quit()
                 sys.exit()
-            elif event.type == VIDEORESIZE:  # Обработка изменения размера окна
+            elif event.type == VIDEORESIZE:  
                 width = event.w
                 height = event.h
                 screen = pygame.display.set_mode((width, height))  
                 background = pygame.transform.scale(background, (width, height))
-            elif event.type == MOUSEBUTTONDOWN:  # Обработка нажатия кнопки мыши
+            elif event.type == MOUSEBUTTONDOWN:  
                 if main_menu_button_rect.collidepoint(event.pos):
-                    return None  # Returning None to indicate going back to the main menu
+                    return None  
                 for i in range(3):  
                     button_x = width // 4 * (i + 1) - button_width // 2
                     button_y = height // 2 - button_height // 2
