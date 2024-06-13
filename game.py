@@ -295,10 +295,7 @@ def run_game(width, height, numberOfLvl):
             if startAi and startAiTime and ai_mode and ai_control:
                 if ai_control:
                     game_time_ai = time.time() - startAiTime
-                    if player_disqualified:
-                        total_time_text_ai = font.render(f"Время ИИ: дискалифицирован", True, BLACK)
-                    else:
-                        total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
+                    total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
                     screen.blit(total_time_text_ai, (width - 300, 90))
                     off_track_textAi = font.render(f"Выездов за трассу: {off_track_counter_ai}", True, BLACK)
                     screen.blit(off_track_textAi, (width - 300, 50))
@@ -329,18 +326,12 @@ def run_game(width, height, numberOfLvl):
 
                 background.draw(screen)
             else:
-                if player_disqualified:
-                    total_time_text_ai = font.render(f"Время ИИ: дискалифицирован", True, BLACK)
-                else:
-                    total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
+                total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
                 screen.blit(total_time_text_ai, (width - 300, 90))
                 off_track_textAi = font.render(f"Выездов за трассу: {off_track_counter_ai}", True, BLACK)
                 screen.blit(off_track_textAi, (width - 300, 50))
         else:
-            if player_disqualified:
-                total_time_text_ai = font.render(f"Время ИИ: дискалифицирован", True, BLACK)
-            else:
-                total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
+            total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
             total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
             screen.blit(total_time_text_ai, (width - 300, 90))
             off_track_textAi = font.render(f"Выездов за трассу: {off_track_counter_ai}", True, BLACK)
@@ -358,8 +349,11 @@ def run_game(width, height, numberOfLvl):
                 text = font.render(f"Машина вне трассы", True, BLACK)
 
         else:
+            background.draw(screen)  
+            all_sprites.draw(screen)
             text_finish = font.render("Финиш!", True, BLACK)
-            screen.blit(text_finish, ((width - text_finish.get_width()) // 2, 50))
+            text_finish_rect = text_finish.get_rect(center=((width // 2, 40)))
+            screen.blit(text_finish, text_finish_rect.topleft)
             restart_text = font.render("Нажмите 'Рестарт'!", True, RED)
             if numberOfLvl == 1 or numberOfLvl == 2:
                 restart_rect = restart_text.get_rect(center=(width // 2, height // 2))
@@ -433,6 +427,8 @@ def run_game(width, height, numberOfLvl):
                     text = font.render(str(item), True, BLACK)
                     text_rect = text.get_rect(center=(x_offset + j * cell_width + cell_width // 2, y_offset + i * row_height + cell_height // 2))
                     screen.blit(text, text_rect)
+            box_rect = text_finish.get_rect(center=((width // 2, 60)))
+            pygame.draw.rect(screen, WHITE, box_rect)
         if not player_control and not ai_control and not show_results:
             show_results = True
             plot_trajectories(car.trail, ai_car.trail)
