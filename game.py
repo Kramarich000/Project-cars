@@ -4,6 +4,7 @@ import pygame
 import sys
 import time
 import pandas as pd
+import matplotlib.pyplot as plt
 pygame.display.set_caption("game")
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -42,12 +43,13 @@ class Level:
         return track_mask
 
     def check_checkpoints(self, car_rect):
-        current_checkpoint = self.checkpoints[self.current_checkpoint_index]
-        if car_rect.colliderect(current_checkpoint):
-            self.current_checkpoint_index = (self.current_checkpoint_index + 1) % len(self.checkpoints)
-            self.visited_checkpoints += 1
-            return current_checkpoint
-        return None
+        if self.checkpoints:
+            current_checkpoint = self.checkpoints[self.current_checkpoint_index]
+            if car_rect.colliderect(current_checkpoint):
+                self.current_checkpoint_index = (self.current_checkpoint_index + 1) % len(self.checkpoints)
+                self.visited_checkpoints += 1
+                return current_checkpoint
+            return None
 
     def check_all_checkpoints_visited(self):
         return self.visited_checkpoints == len(self.checkpoints)
@@ -81,8 +83,6 @@ class Level:
 
     def delete_Checkpoints(self):
         self.checkpoints = []
-
-    def draw(self, screen, numberOfLvl):
 
     def draw(self, screen):
 
@@ -127,11 +127,50 @@ def CheckAiInitialPos(ai_initialX, ai_initialY, ai_NewX, ai_NewY):
         return True
     return False
    
+"""
+def draw_comparison_graph(screen, car, ai_car):
+    # Создаем фигуру Matplotlib
+    fig = plt.figure(figsize=(5, 5))  # Размеры фигуры
+    ax = fig.add_subplot(111)
+
+    # Получаем координаты траекторий
+    car_x = [pos[0] for pos in car.get_positions()]
+    car_y = [pos[1] for pos in car.get_positions()]
+
+    ai_x = [pos[0] for pos in ai_car.get_positions()]
+    ai_y = [pos[1] for pos in ai_car.get_positions()]
+
+    # Рисуем линии траекторий
+    ax.plot(car_x, car_y, color='blue', label='Player Car')
+    ax.plot(ai_x, ai_y, color='green', label='AI Car')
+
+    # Настройки графика
+    ax.set_title('Trajectory Comparison')
+    ax.set_xlabel('X Position')
+    ax.set_ylabel('Y Position')
+    ax.legend()
+
+    # Преобразуем рисунок Matplotlib в изображение Pygame
+    canvas = plt.get_current_fig_manager().canvas
+    canvas.draw()
+    renderer = canvas.get_renderer()
+    raw_data = renderer.tostring_rgb()
+    size = canvas.get_width_height()
+
+    # Создаем поверхность Pygame и отображаем изображение на экране
+    surf = pygame.image.fromstring(raw_data, size, "RGB")
+    screen.blit(surf, (0, 0))
+
+    # Обновляем экран
+    pygame.display.flip()
+"""
+
 def run_game(width, height, numberOfLvl):
     pygame.init()
     WINDOW_SIZE = (width, height)
     screen = pygame.display.set_mode(WINDOW_SIZE)
     clock = pygame.time.Clock()
+    screen.fill(WHITE)
 
     def initialize_cars():
         if numberOfLvl == 1:
@@ -156,7 +195,6 @@ def run_game(width, height, numberOfLvl):
     off_track_counter_ai = 0
     startAi = False
 
-
     background = Level(width, height, numberOfLvl)
 
     font = pygame.font.Font(None, 36)
@@ -167,11 +205,12 @@ def run_game(width, height, numberOfLvl):
 
     player_control = True
 
-    lap_start_time = game_start_time
-    maxLaps = 300
     lastAi_off_track = False
+    lastAi_checkpoint = 0
 
+    check_aiPos = False
 
+    ai_control = False
 
     aiLaps = 0
     ai_mode = False
@@ -183,17 +222,19 @@ def run_game(width, height, numberOfLvl):
     game_time_history = []
 
     def reset_game():
-        nonlocal car, ai_car, last_checkpoint, off_track_counter, last_off_track, game_start_time, ai_mode, game_time_history, player_control
-        car, ai_car = initialize_cars()
-        last_checkpoint = None
-        off_track_counter = 0
-        last_off_track = False
-        game_start_time = time.time()
-        ai_mode = False
-        game_time_history = []
-        background.current_checkpoint_index = 0
-        background.visited_checkpoints = 0
-        player_control = True
+        #nonlocal car, ai_car, last_checkpoint, off_track_counter, last_off_track, game_start_time, ai_mode, game_time_history, player_control
+        #car, ai_car = initialize_cars()
+        #last_checkpoint = None
+        #off_track_counter = 0
+        #last_off_track = False
+        #game_start_time = time.time()
+        #ai_mode = False
+        #game_time_history = []
+        #background.current_checkpoint_index = 0
+        #background.visited_checkpoints = 0
+        #player_control = True
+        screen.fill(WHITE)
+        run_game(width, height, numberOfLvl)
 
     while True:
         all_sprites = pygame.sprite.Group()
@@ -204,7 +245,6 @@ def run_game(width, height, numberOfLvl):
         current_time = time.time()
         elapsed_time = current_time - game_start_time
         game_time_history.append(elapsed_time)
-
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -218,7 +258,7 @@ def run_game(width, height, numberOfLvl):
                 mouse_pos = event.pos
                 if button1.collidepoint(mouse_pos):
                     background.open_main_menu()
-                elif button2.collidepoint(mouse_pos):
+                elif button2.collidepoint(mouse_pos) and player_control == False:
                     ai_car.show()
                     ai_mode = True
                     keys_list = car.get_keys_recorded()
@@ -251,30 +291,40 @@ def run_game(width, height, numberOfLvl):
                     reset_game()
 
         keys = pygame.key.get_pressed()
+    
 
-        if not ai_mode and player_control:
+        if not ai_mode:
+            if player_control == False:
+                background.checkpoints = background.delete_Checkpoints()
             ai_car.hide()
-            car.update(keys)
+            if player_control == True:
+                car.update(keys)
         else:
             ai_car.update(screen)
 
         car.rect.x = max(0, min(width - car.rect.width, car.rect.x))
         car.rect.y = max(0, min(height - car.rect.height, car.rect.y))
 
-        checkpoint = background.check_checkpoints(car.rect)
-        if checkpoint and checkpoint != last_checkpoint:
-            last_checkpoint = checkpoint
-            if checkpoint == background.checkpoints[-1]:
-                player_control = False
+        if player_control == True:
+            checkpoint = background.check_checkpoints(car.rect)
+            if background.checkpoints and background.checkpoints != background:
+                last_checkpoint = checkpoint
+                if checkpoint == background.checkpoints[-1]:
+                    player_control = False
 
-        if CheckAiInitialPos(ai_initialX, ai_initialY, ai_car.rect.x, ai_car.rect.y):
-            
+        if check_aiPos == False and CheckAiInitialPos(ai_initialX, ai_initialY, ai_car.rect.x, ai_car.rect.y):
+            check_aiPos = True
+
+        if check_aiPos == True:   
             if startAi == False:
-               startAiTime = time.time()
-               lapAi_start_time = time.time()
-               startAi = True
-               background.delete_Checkpoints()
-               background.create_checkpoints()
+                startAiTime = time.time()
+                total_Ai_time = time.time() - startAiTime
+                startAi = True
+                ai_control = True
+                background.checkpoints = background.create_checkpoints(10,91,numberOfLvl)
+                background.current_checkpoint_index = 0
+                background.visited_checkpoints = 0
+
 
             if background.is_on_track(ai_car.image, ai_car.rect):
                 if lastAi_off_track:
@@ -284,23 +334,22 @@ def run_game(width, height, numberOfLvl):
                     off_track_counter_ai += 1
                     lastAi_off_track = True
 
-            aiCheckpoints = background.check_checkpoints(ai_car.rect)
 
-            if aiCheckpoints and aiCheckpoints != lastAi_checkpoint:
-                lastAi_checkpoint = checkpoint
-                if aiCheckpoints == background.checkpoints[-1]:
-                    aiLaps += 1
-                    lapAi_start_time = time.time()
-            total_Ai_time = time.time()-startAiTime
-            lapAi_time = time.time() - lapAi_start_time
+            aiCheckpoints = background.check_checkpoints(ai_car.rect)
+            if ai_control == True:
+                if aiCheckpoints and aiCheckpoints != lastAi_checkpoint:
+                    lastAi_checkpoint = aiCheckpoints
+                    if aiCheckpoints == background.checkpoints[-1]:
+                        ai_control = False
+            else:
+                background.checkpoints = background.delete_Checkpoints()
+            if ai_control == True:
+                total_Ai_time = time.time()-startAiTime
             total_time_textAi = font.render(f"Общее время прохождения: {total_Ai_time:.2f} сек", True, BLACK)
-            lap_time_textAi = font.render(f"Время прохождения круга: {lapAi_time:.2f} сек", True, BLACK)
             off_track_textAi = font.render(f"Количество выездов за трассу: {off_track_counter_ai}", True, BLACK)
-            lapsText = font.render(f"Кол-во кругов: {aiLaps}", True, BLACK)
-            screen.blit(total_time_textAi, (width - total_time_text.get_width() - 170, 40))
-            screen.blit(lap_time_textAi, (width - lap_time_text.get_width() - 170, 80))
-            screen.blit(off_track_textAi, (width - off_track_text.get_width() - 170, 120))
-            screen.blit(lapsText, (width - off_track_text.get_width() - 170, 160))
+            screen.blit(total_time_textAi, (width - total_time_text.get_width() - 185, 40))
+            screen.blit(off_track_textAi, (width - off_track_text.get_width() - 170, 80))
+
         if background.is_on_track(car.image, car.rect):
             if last_off_track:
                 last_off_track = False
@@ -319,13 +368,17 @@ def run_game(width, height, numberOfLvl):
         off_track_text = font.render(f"Выездов за трассу: {off_track_counter}", True, BLACK)
         screen.blit(off_track_text, (10, 50))
 
-        total_time = time.time() - game_start_time
+        if player_control == True:
+            total_time = time.time() - game_start_time
         total_time_text = font.render(f"Общее время: {total_time:.2f} сек", True, BLACK)
         screen.blit(total_time_text, (10, 90))
 
         background.draw_button("Главное меню", button1)
-        background.draw_button("Проезд ИИ", button2)
+        if player_control == False and ai_mode == False:
+            background.draw_button("Проезд ИИ", button2)
         background.draw_button("Рестарт", button3)
+        #if not player_control and ai_mode and not ai_control:
+            #draw_comparison_graph(screen, car, ai_car)
 
         fps = font.render(f"FPS: {int(clock.get_fps())}", True, BLACK)
         screen.blit(fps, (10, 130))     
