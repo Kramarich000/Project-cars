@@ -82,8 +82,6 @@ class Car(pygame.sprite.Sprite):
             self.keys_recorded.append(pressed_key)
     
 
-
-
     def draw_trail(self, screen):
         if len(self.trail) > 1:
             pygame.draw.lines(screen, self.trail_color, False, self.trail, 2)
