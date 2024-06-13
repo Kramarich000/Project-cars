@@ -26,6 +26,7 @@ class Car(pygame.sprite.Sprite):
         self.backAcceleration = 0.05
         self.min_turn_speed = 1
         self.positions = []
+        self.drawPositions = []
         self.angle_ = []
         self.speed_ = []
         self.keys_recorded = []
@@ -66,6 +67,8 @@ class Car(pygame.sprite.Sprite):
         self.rect.x += dx
         self.rect.y += dy
         new_position = (self.rect.centerx, self.rect.centery)
+        
+        self.drawPositions.append(new_position)
 
         if not self.positions or self.positions[-1] != new_position and self.speed != 0:
             self.positions.append(new_position)
@@ -76,6 +79,9 @@ class Car(pygame.sprite.Sprite):
         if pressed_key is not None:
             self.keys_recorded.append(pressed_key)
     
+
+
+
     def draw_trail(self, screen):
         if len(self.trail) > 1:
             pygame.draw.lines(screen, self.trail_color, False, self.trail, 2)
@@ -86,11 +92,14 @@ class Car(pygame.sprite.Sprite):
     def get_angle_recorded(self):
         return self.angle_
     
+    def get_positions(self):
+        return self.positions
+
     def get_speed_recorded(self):
         return self.speed_
     
     def get_positions(self):
-        return self.positions
+        return self.drawPositions
 
     def reset_keys_recorded(self):
         self.keys_recorded = []
