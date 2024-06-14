@@ -139,6 +139,14 @@ def plot_trajectories(car_trail, ai_trail):
     plt.grid(True)
     plt.show()
    
+def printRestart(numberOfLvl, screen, width,height):
+    font = pygame.font.Font(None, 36)
+    restart_text = font.render("Нажмите 'Рестарт'!", True, RED)
+    if numberOfLvl == 1 or numberOfLvl == 2:
+        restart_rect = restart_text.get_rect(center=(width // 2, height // 2))
+    elif numberOfLvl == 3:
+        restart_rect = restart_text.get_rect(center=(width // 2 + 150, height // 2))
+    screen.blit(restart_text, restart_rect)
    
 def run_game(width, height, numberOfLvl):
     pygame.init()
@@ -172,7 +180,8 @@ def run_game(width, height, numberOfLvl):
     game_time_player = 0.0  
     game_time_ai = 0.0
     total_time_text_ai = None
-
+    penalty_player = 0.0
+    penalty_ai = 0.0
     background = Level(width, height, numberOfLvl)
 
     font = pygame.font.Font(None, 36)
@@ -199,6 +208,8 @@ def run_game(width, height, numberOfLvl):
 
     player_disqualified = False
     ai_training_completed = False
+    ai_last_movement_time = time.time()
+    ai_disqualified = False
 
     def reset_game():
         screen.fill(WHITE)
@@ -206,6 +217,8 @@ def run_game(width, height, numberOfLvl):
 
     player_started = False  
     show_results = False 
+    ai_last_position_x = ai_car.rect.x
+    ai_last_position_y = ai_car.rect.y
 
     while True:
         all_sprites = pygame.sprite.Group()
@@ -246,9 +259,9 @@ def run_game(width, height, numberOfLvl):
                         data['X'].append(positions_list[i][0] if i < len(positions_list) else car.rect.x)
                         data['Y'].append(positions_list[i][1] if i < len(positions_list) else car.rect.y)
                         data['Angle'].append(angles_list[i] if i < len(angles_list) else car.angle)
-                        data['Speed'].append(speeds_list[i] if i < len(speeds_list) else car.speed)
+                        data['Speed'].append(speeds_list[i] if i < len(speeds_list) else 0)
                         data['Keys'].append(keys_list[i] if i < len(keys_list) else 4)
-                        data['Time'].append(game_time_history[i] if i < len(game_time_history) else time.time() - game_start_time)
+                        data['Time'].append(game_time_history[i] if i < len(game_time_history) else data['Time'].append(time.time() - game_start_time))
 
                     df = pd.DataFrame(data)
                     df.to_csv('car_data.csv', index=False)
@@ -276,7 +289,9 @@ def run_game(width, height, numberOfLvl):
             ai_car.hide()
             car.update(keys)
             if keys[pygame.K_LEFT] or keys[pygame.K_RIGHT] or keys[pygame.K_UP] or keys[pygame.K_DOWN]:
-                player_started = True
+                if player_started == False:
+                    player_started = True
+                    game_start_time = time.time()
 
         if ai_mode and ai_control:
             ai_car.update(screen)
@@ -294,34 +309,39 @@ def run_game(width, height, numberOfLvl):
         if CheckAiInitialPos(ai_initialX, ai_initialY, ai_car.rect.x, ai_car.rect.y):
             if startAi and startAiTime and ai_mode and ai_control:
                 if ai_control:
-                    game_time_ai = time.time() - startAiTime
-                    total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
-                    screen.blit(total_time_text_ai, (width - 300, 90))
+                    game_time_ai = time.time() - startAiTime + penalty_ai
+                    if ai_car.rect.x == ai_last_position_x and ai_car.rect.y == ai_last_position_y:
+                        if current_time - ai_last_movement_time >= 2:
+                            ai_disqualified = True
+                            printRestart(numberOfLvl, screen, width, height)
+                    else:
+                        ai_last_position_x = ai_car.rect.x
+                        ai_last_position_y = ai_car.rect.y
+                        ai_last_movement_time = current_time
+                    if ai_disqualified:
+                        total_time_text_ai = font.render(f"Время ИИ: дисквалифицирован", True, BLACK)
+                    else:    
+                        total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
+                    screen.blit(total_time_text_ai, (width - 400, 90))
                     off_track_textAi = font.render(f"Выездов за трассу: {off_track_counter_ai}", True, BLACK)
-                    screen.blit(off_track_textAi, (width - 300, 50))
-
-                if background.is_on_track(ai_car.image, ai_car.rect):
-                    if lastAi_off_track:
-                        lastAi_off_track = False
-                else:
-                    if not lastAi_off_track:
-                        off_track_counter_ai += 1
-                        lastAi_off_track = True
+                    screen.blit(off_track_textAi, (width - 400, 50))
 
                 aiCheckpoints = background.check_checkpoints(ai_car.rect)
                 if aiCheckpoints and aiCheckpoints != lastAi_checkpoint:
                     lastAi_checkpoint = aiCheckpoints
                     if background.checkpoints and lastAi_checkpoint == background.checkpoints[-1]:
                         ai_control = False
+                        printRestart(numberOfLvl, screen, width, height)
                 if background.is_on_track(ai_car.image, ai_car.rect):
                     if lastAi_off_track:
                         lastAi_off_track = False
                     ai_text = font.render("ИИ на трассе", True, BLACK)
                 else:
                     if not lastAi_off_track:
+                        penalty_ai += 5.0
                         off_track_counter_ai += 1
                         lastAi_off_track = True
-                    ai_text = font.render("ИИ вне трассы", True, BLACK)
+                    ai_text = font.render("ИИ вне трассы - Штраф!", True, BLACK)
                 screen.blit(ai_text, ((width - ai_text.get_width()) // 2, 120))
 
                 background.draw(screen)
@@ -330,6 +350,7 @@ def run_game(width, height, numberOfLvl):
                 screen.blit(total_time_text_ai, (width - 300, 90))
                 off_track_textAi = font.render(f"Выездов за трассу: {off_track_counter_ai}", True, BLACK)
                 screen.blit(off_track_textAi, (width - 300, 50))
+                printRestart(numberOfLvl, screen, width, height)
         else:
             total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
             total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
@@ -346,7 +367,8 @@ def run_game(width, height, numberOfLvl):
                 if not last_off_track:
                     off_track_counter += 1
                     last_off_track = True
-                text = font.render(f"Машина вне трассы", True, BLACK)
+                    penalty_player += 5.0
+                text = font.render(f"Машина вне трассы - Штраф!", True, BLACK)
 
         else:
             background.draw(screen)  
@@ -354,12 +376,7 @@ def run_game(width, height, numberOfLvl):
             text_finish = font.render("Финиш!", True, BLACK)
             text_finish_rect = text_finish.get_rect(center=((width // 2, 40)))
             screen.blit(text_finish, text_finish_rect.topleft)
-            restart_text = font.render("Нажмите 'Рестарт'!", True, RED)
-            if numberOfLvl == 1 or numberOfLvl == 2:
-                restart_rect = restart_text.get_rect(center=(width // 2, height // 2))
-            elif numberOfLvl == 3:
-                restart_rect = restart_text.get_rect(center=(width // 2 + 150, height // 2))
-            screen.blit(restart_text, restart_rect)
+            printRestart(numberOfLvl, screen, width, height)
 
         background.draw(screen)
         all_sprites.draw(screen)
@@ -369,7 +386,7 @@ def run_game(width, height, numberOfLvl):
             screen.blit(text, ((width - text.get_width()) // 2, 50))
         
         if player_started and player_control:
-            game_time_player = time.time() - game_start_time
+            game_time_player = time.time() - game_start_time + penalty_player
             if player_disqualified:
                 total_time_text_player = font.render(f"Время игрока: дисквалифицирован", True, BLACK)
             else:
