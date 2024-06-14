@@ -139,6 +139,14 @@ def plot_trajectories(car_trail, ai_trail):
     plt.grid(True)
     plt.show()
    
+def printRestart(numberOfLvl, screen, width,height):
+    font = pygame.font.Font(None, 36)
+    restart_text = font.render("Нажмите 'Рестарт'!", True, RED)
+    if numberOfLvl == 1 or numberOfLvl == 2:
+        restart_rect = restart_text.get_rect(center=(width // 2, height // 2))
+    elif numberOfLvl == 3:
+        restart_rect = restart_text.get_rect(center=(width // 2 + 150, height // 2))
+    screen.blit(restart_text, restart_rect)
    
 def run_game(width, height, numberOfLvl):
     pygame.init()
@@ -303,6 +311,7 @@ def run_game(width, height, numberOfLvl):
                     if ai_car.rect.x == ai_last_position_x and ai_car.rect.y == ai_last_position_y:
                         if current_time - ai_last_movement_time >= 2:
                             ai_disqualified = True
+                            printRestart(numberOfLvl, screen, width, height)
                     else:
                         ai_last_position_x = ai_car.rect.x
                         ai_last_position_y = ai_car.rect.y
@@ -320,6 +329,7 @@ def run_game(width, height, numberOfLvl):
                     lastAi_checkpoint = aiCheckpoints
                     if background.checkpoints and lastAi_checkpoint == background.checkpoints[-1]:
                         ai_control = False
+                        printRestart(numberOfLvl, screen, width, height)
                 if background.is_on_track(ai_car.image, ai_car.rect):
                     if lastAi_off_track:
                         lastAi_off_track = False
@@ -338,6 +348,7 @@ def run_game(width, height, numberOfLvl):
                 screen.blit(total_time_text_ai, (width - 300, 90))
                 off_track_textAi = font.render(f"Выездов за трассу: {off_track_counter_ai}", True, BLACK)
                 screen.blit(off_track_textAi, (width - 300, 50))
+                printRestart(numberOfLvl, screen, width, height)
         else:
             total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
             total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
