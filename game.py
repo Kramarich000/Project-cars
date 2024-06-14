@@ -376,12 +376,7 @@ def run_game(width, height, numberOfLvl):
             text_finish = font.render("Финиш!", True, BLACK)
             text_finish_rect = text_finish.get_rect(center=((width // 2, 40)))
             screen.blit(text_finish, text_finish_rect.topleft)
-            restart_text = font.render("Нажмите 'Рестарт'!", True, RED)
-            if numberOfLvl == 1 or numberOfLvl == 2:
-                restart_rect = restart_text.get_rect(center=(width // 2, height // 2))
-            elif numberOfLvl == 3:
-                restart_rect = restart_text.get_rect(center=(width // 2 + 150, height // 2))
-            screen.blit(restart_text, restart_rect)
+            printRestart(numberOfLvl, screen, width, height)
 
         background.draw(screen)
         all_sprites.draw(screen)
