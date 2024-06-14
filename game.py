@@ -289,7 +289,9 @@ def run_game(width, height, numberOfLvl):
             ai_car.hide()
             car.update(keys)
             if keys[pygame.K_LEFT] or keys[pygame.K_RIGHT] or keys[pygame.K_UP] or keys[pygame.K_DOWN]:
-                player_started = True
+                if player_started == False:
+                    player_started = True
+                    game_start_time = time.time()
 
         if ai_mode and ai_control:
             ai_car.update(screen)
