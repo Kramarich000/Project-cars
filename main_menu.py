@@ -10,6 +10,7 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (169, 169, 169)
 DARK_GRAY = (105, 105, 105)
+
 numberOfLvl = 0
 drive = False
 
@@ -18,8 +19,7 @@ def main_menu(width, height):
     WINDOW_SIZE = (width, height)
     screen = pygame.display.set_mode(WINDOW_SIZE)  
 
-    path = "main_menu.jpg"
-    image = pygame.image.load(path)
+    image = pygame.image.load("main_menu.jpg")
     image = pygame.transform.scale(image, (width, height))  
     image_rect = image.get_rect()
     screen_rect = screen.get_rect()

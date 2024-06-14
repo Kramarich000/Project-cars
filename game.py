@@ -155,61 +155,35 @@ def run_game(width, height, numberOfLvl):
     clock = pygame.time.Clock()
 
     def initialize_cars():
-        if numberOfLvl == 1:
-            car = Car(width // 2 + 400, height // 2 - 160)
-            ai_car = AICar(width // 2 + 400, height // 2 - 160)
+        positions = {
+            1: (width // 2 + 400, height // 2 - 160),
+            2: (width // 2 + 80, height // 2 - 220),
+            3: (width // 2 + 410, height // 2)
+        }
+        car = Car(*positions[numberOfLvl])
+        ai_car = AICar(*positions[numberOfLvl])
+        if numberOfLvl in [1, 2]:
             car.angle += 90
             ai_car.angle += 90
-        if numberOfLvl == 2:
-            car = Car(width // 2 + 80, height // 2 - 220)
-            ai_car = AICar(width // 2 + 80, height // 2 - 220)
-            car.angle += 90
-            ai_car.angle += 90
-        if numberOfLvl == 3:
-            car = Car(width // 2 + 410, height // 2)
-            ai_car = AICar(width // 2 + 410, height // 2)
         return car, ai_car
-
+    
     car, ai_car = initialize_cars()
 
-    ai_initialX = ai_car.rect.x
-    ai_initialY = ai_car.rect.y
-    off_track_counter_ai = 0
-    startAi = False
-    startAiTime = None
-    game_time_player = 0.0  
-    game_time_ai = 0.0
-    total_time_text_ai = None
-    penalty_player = 0.0
-    penalty_ai = 0.0
+    ai_initialX, ai_initialY = ai_car.rect.x, ai_car.rect.y
+    off_track_counter_ai, off_track_counter = 0, 0
+    startAi, player_started, show_results = False, False, False
+    penalty_player, penalty_ai = 0.0, 0.0
+    game_time_player, game_time_ai = 0.0, 0.0
+    last_off_track, lastAi_off_track = False, False
+    ai_disqualified, player_disqualified = False, False
+    game_start_time, ai_last_movement_time = time.time(), time.time()
+    ai_mode, ai_control, player_control, pressed, ai_training_completed = False, False, True, True, False
+    startAiTime, total_time_text_ai, last_checkpoint, lastAi_checkpoint = None, None, None, None
+
     background = Level(width, height, numberOfLvl)
-
     font = pygame.font.Font(None, 36)
-    last_checkpoint = None
-    lastAi_checkpoint = None
-    off_track_counter = 0
-    last_off_track = False
-    game_start_time = time.time()
-
-    player_control = True
-    ai_control = False
-
-    pressed = True
-
-    lastAi_off_track = False
-
-    ai_mode = False
-
-    button1 = pygame.Rect(5, 170, 200, 50)
-    button2 = pygame.Rect(5, 230, 200, 50)
-    button3 = pygame.Rect(5, 290, 200, 50)
-
+    button1, button2, button3 = pygame.Rect(5, 170, 200, 50), pygame.Rect(5, 230, 200, 50), pygame.Rect(5, 290, 200, 50)
     game_time_history = []
-
-    player_disqualified = False
-    ai_training_completed = False
-    ai_last_movement_time = time.time()
-    ai_disqualified = False
 
     def reset_game():
         screen.fill(WHITE)
@@ -239,7 +213,7 @@ def run_game(width, height, numberOfLvl):
                 if button1.collidepoint(mouse_pos):
                     background.open_main_menu()
                 elif button2.collidepoint(mouse_pos) and pressed:
-                    if background.current_checkpoint_index < len(background.checkpoints) - 1:
+                    if background.current_checkpoint_index < len(background.checkpoints):
                         player_disqualified = True
                     background.current_checkpoint_index = 0
                     background.create_checkpoints(10, 91, numberOfLvl)
