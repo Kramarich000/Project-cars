@@ -321,16 +321,16 @@ def run_game(width, height, numberOfLvl):
                 background.draw(screen)
             else:
                 total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
-                screen.blit(total_time_text_ai, (width - 300, 90))
+                screen.blit(total_time_text_ai, (width - 400, 90))
                 off_track_textAi = font.render(f"Выездов за трассу: {off_track_counter_ai}", True, BLACK)
-                screen.blit(off_track_textAi, (width - 300, 50))
+                screen.blit(off_track_textAi, (width - 400, 50))
                 printRestart(numberOfLvl, screen, width, height)
         else:
             total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
             total_time_text_ai = font.render(f"Время ИИ: {game_time_ai:.2f} сек", True, BLACK)
-            screen.blit(total_time_text_ai, (width - 300, 90))
+            screen.blit(total_time_text_ai, (width - 400, 90))
             off_track_textAi = font.render(f"Выездов за трассу: {off_track_counter_ai}", True, BLACK)
-            screen.blit(off_track_textAi, (width - 300, 50))
+            screen.blit(off_track_textAi, (width - 400, 50))
 
         if player_control or ai_control:
             if background.is_on_track(car.image, car.rect):
