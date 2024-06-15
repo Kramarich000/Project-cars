@@ -1,2 +1,0 @@
-class drive:
-    pass
